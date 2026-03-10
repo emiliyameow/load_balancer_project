@@ -11,36 +11,66 @@ skinparam noteBackgroundColor #FFFFCC
 skinparam noteBorderColor #CCCC00
 
 participant "Клиент" as Client
-participant "Балансировщик\n(Маршрутизатор)" as LB
-participant "Реестр\nСервисов" as Registry
-participant "Бэкенд\nСервер" as Backend
+participant "Балансировщик\n(Router + Load Balancer)" as LB
+participant "Service Cache\n(список инстансов)" as SC
+participant "Health Checker" as HC
 
-Client -> LB : 1 HTTP Запрос (GET /api/v2/users)
+participant "Health Cache\n(статус инстансов)" as HCACHE
+participant "Service Discovery\nClient" as SD
+participant "Backend Instance" as Backend
 
-LB -> LB : 2 Анализ заголовков и пути
 
-LB -> Registry : 3 Запрос статуса серверов
-Registry --> LB : 4 Список доступных (В1, В2)
 
-LB -> LB : 5 Логика переключения (Routing Logic)
+
+
+== Основной поток обработки запроса ==
+
+Client -> LB : 1 HTTP Request\n(GET /api/v2/users)
+
+LB -> LB : 2 Анализ path + headers
 
 note over LB
-  Если /api/v2/* -> Кластер В
-  Если X-Beta: true -> Кластер С
-  Иначе -> Кластер А
+Routing rules
+/api/v2/* -> Cluster B
+X-Beta: true -> Cluster C
+else -> Cluster A
 end note
 
-LB -> Backend : 6 Проксирование запроса
-Backend --> LB : 7 HTTP Ответ (200 OK)
+LB -> SC : 3 Получить instances сервиса
+SC --> LB : 4 Список серверов
 
-alt 404 Ответ
-    LB -> LB : 5 Логика переключения (на следующий по алгоритму)
-    LB -> Backend : 6 Проксирование запроса
-Backend --> LB : 7 HTTP Ответ (200 OK)
+LB -> HCACHE : 5 Проверить health статус
+HCACHE --> LB : Список healthy instances
+
+LB -> LB : 6 Load balancing algorithm\n(Weighted Round Robin)
+
+LB -> Backend : 7 Proxy request
+Backend --> LB : 8 HTTP Response
+
+alt Backend error (5xx / timeout)
+    LB -> LB : Retry policy\n(max 2 attempts)
+    LB -> Backend : Proxy request (next instance)
+    Backend --> LB : HTTP Response
 end
 
- 
-LB --> Client : 8 Возврат ответа
+LB --> Client : 9 Return response
+
+
+== Service Discovery (background sync) ==
+
+loop Периодическая синхронизация
+    SD -> SD : Получить сервисы\nиз Service Registry
+    SD -> LB : Обновить список сервисов
+    LB -> SC : Обновить Service Cache
+end
+
+
+== Health Checking ==
+
+loop Периодические проверки
+    HC -> Backend : GET /health
+    Backend --> HC : 200 OK / FAIL
+    HC -> HCACHE : Обновить статус instance
+end
 
 @enduml
-
