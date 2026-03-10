@@ -1,0 +1,41 @@
+@startuml
+
+skinparam componentStyle rectangle
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+skinparam componentBorderColor #555
+skinparam componentBackgroundColor #F0F0F0
+skinparam arrowColor #555
+
+actor "Клиент" as Client
+
+component "Load Balancer" as LB {
+
+  component "Request Router" as Router
+  component "Load Balancing\nAlgorithm" as LBA
+  component "Service Cache\n(service → instances)" as SC
+  component "Health Cache\n(instance → status)" as HCACHE
+  component "Service Discovery\nClient" as SD
+  component "Health Checker" as HC
+
+}
+
+component "Service Registry" as Registry
+
+component "Backend Instances" as Backend
+
+Client --> Router : HTTP Request
+
+Router --> SC : получить\ninstances
+Router --> HCACHE : проверить\nhealth status
+Router --> LBA : выбрать instance
+
+LBA --> Backend : proxy request
+
+SD --> Registry : получить\nсписок сервисов
+SD --> SC : обновить cache
+
+HC --> Backend : health check\n(/health)
+HC --> HCACHE : обновить статус
+
+@enduml

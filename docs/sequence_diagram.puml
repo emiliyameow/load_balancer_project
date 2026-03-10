@@ -1,0 +1,46 @@
+@startuml
+
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam defaultFontName Arial
+skinparam backgroundColor white
+skinparam sequenceLifeLineBorderColor #555
+skinparam sequenceParticipantBorderColor #555
+skinparam sequenceParticipantBackgroundColor #F0F0F0
+skinparam noteBackgroundColor #FFFFCC
+skinparam noteBorderColor #CCCC00
+
+participant "Клиент" as Client
+participant "Балансировщик\n(Маршрутизатор)" as LB
+participant "Реестр\nСервисов" as Registry
+participant "Бэкенд\nСервер" as Backend
+
+Client -> LB : 1 HTTP Запрос (GET /api/v2/users)
+
+LB -> LB : 2 Анализ заголовков и пути
+
+LB -> Registry : 3 Запрос статуса серверов
+Registry --> LB : 4 Список доступных (В1, В2)
+
+LB -> LB : 5 Логика переключения (Routing Logic)
+
+note over LB
+  Если /api/v2/* -> Кластер В
+  Если X-Beta: true -> Кластер С
+  Иначе -> Кластер А
+end note
+
+LB -> Backend : 6 Проксирование запроса
+Backend --> LB : 7 HTTP Ответ (200 OK)
+
+alt 404 Ответ
+    LB -> LB : 5 Логика переключения (на следующий по алгоритму)
+    LB -> Backend : 6 Проксирование запроса
+Backend --> LB : 7 HTTP Ответ (200 OK)
+end
+
+ 
+LB --> Client : 8 Возврат ответа
+
+@enduml
+
