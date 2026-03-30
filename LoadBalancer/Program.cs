@@ -1,5 +1,5 @@
-using LoadBalancer.API;
-using IRouter = LoadBalancer.API.IRouter;
+using LoadBalancer.API.Rout;
+using IRouter = LoadBalancer.API.Rout.IRouter;
 
 var builder = WebApplication.CreateBuilder(args);
 

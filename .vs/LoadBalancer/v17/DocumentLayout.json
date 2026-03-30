@@ -1,0 +1,68 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\user\\Desktop\\CODE\\load-balancer\\load_balancer_project\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{916CFF22-BB99-45A5-84D6-89E5963B3D58}|LoadBalancer\\LoadBalancer.API.csproj|c:\\users\\user\\desktop\\code\\load-balancer\\load_balancer_project\\loadbalancer\\rout\\routingmiddleware.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{916CFF22-BB99-45A5-84D6-89E5963B3D58}|LoadBalancer\\LoadBalancer.API.csproj|solutionrelative:loadbalancer\\rout\\routingmiddleware.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{916CFF22-BB99-45A5-84D6-89E5963B3D58}|LoadBalancer\\LoadBalancer.API.csproj|c:\\users\\user\\desktop\\code\\load-balancer\\load_balancer_project\\loadbalancer\\rout\\irouter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{916CFF22-BB99-45A5-84D6-89E5963B3D58}|LoadBalancer\\LoadBalancer.API.csproj|solutionrelative:loadbalancer\\rout\\irouter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "IRouter.cs",
+              "DocumentMoniker": "C:\\Users\\user\\Desktop\\CODE\\load-balancer\\load_balancer_project\\LoadBalancer\\Rout\\IRouter.cs",
+              "RelativeDocumentMoniker": "LoadBalancer\\Rout\\IRouter.cs",
+              "ToolTip": "C:\\Users\\user\\Desktop\\CODE\\load-balancer\\load_balancer_project\\LoadBalancer\\Rout\\IRouter.cs",
+              "RelativeToolTip": "LoadBalancer\\Rout\\IRouter.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAYAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-30T21:11:20.903Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "RoutingMiddleware.cs",
+              "DocumentMoniker": "C:\\Users\\user\\Desktop\\CODE\\load-balancer\\load_balancer_project\\LoadBalancer\\Rout\\RoutingMiddleware.cs",
+              "RelativeDocumentMoniker": "LoadBalancer\\Rout\\RoutingMiddleware.cs",
+              "ToolTip": "C:\\Users\\user\\Desktop\\CODE\\load-balancer\\load_balancer_project\\LoadBalancer\\Rout\\RoutingMiddleware.cs",
+              "RelativeToolTip": "LoadBalancer\\Rout\\RoutingMiddleware.cs",
+              "ViewState": "AgIAAAcAAAAAAAAAAAAQwCIAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-30T21:08:38.074Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{e1b7d1f8-9b3c-49b1-8f4f-bfc63a88835d}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
