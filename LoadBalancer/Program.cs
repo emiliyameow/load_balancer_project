@@ -1,25 +1,26 @@
-namespace LoadBalancer.API;
+using LoadBalancer.API;
+using IRouter = LoadBalancer.API.IRouter;
 
-public class Program
-{
-    public static void Main(string[] args)
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    .AddHttpClient<IRouter, Router>()
+    .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        var builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddHttpClient<IRouter, Router>();
-        var app = builder.Build();
-
-        app.Map("/{**path}", async (HttpContext context, IRouter router, IConfiguration configuration) =>
+        return new SocketsHttpHandler
         {
-            var backends = configuration
-                .GetSection("Settings:Backends")
-                .Get<List<BackendConfig>>();
+            // Обновляем соединения, чтобы клиент периодически заново резолвил DNS
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
 
-            var backend = backends?.FirstOrDefault();
-            
+            // Ограничение числа соединений на один backend
+            MaxConnectionsPerServer = 50,
 
-            await router.RouteAsync(context, backend.Address);
-        });
+            // Сколько неиспользуемое соединение может жить в пуле
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
+        };
+    });
+var app = builder.Build();
 
-        app.Run();
-    }
-}
+app.UseMiddleware<RoutingMiddleware>();
+
+app.Run();

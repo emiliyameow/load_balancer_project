@@ -1,8 +1,23 @@
-﻿namespace LoadBalancer.API;
+﻿using Microsoft.AspNetCore.Http.Features;
+
+namespace LoadBalancer.API;
 
 public class Router : IRouter
 {
     private readonly HttpClient _httpClient;
+
+    private static readonly HashSet<string> HopByHopHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Connection",
+        "Keep-Alive",
+        "Proxy-Authenticate",
+        "Proxy-Authorization",
+        "TE",
+        "Trailer",
+        "Transfer-Encoding",
+        "Upgrade",
+        "Proxy-Connection"
+    };
 
     public Router(HttpClient httpClient)
     {
@@ -19,18 +34,32 @@ public class Router : IRouter
         }
 
         var request = context.Request;
-        var targetUri = $"{targetUrl.TrimEnd('/')}{request.Path}{request.QueryString}";
+        var baseUri = new Uri(targetUrl);
 
-        using var proxyRequest = new HttpRequestMessage(new HttpMethod(request.Method), targetUri);
-
-        if (request.ContentLength is > 0)
+        var builder = new UriBuilder(baseUri)
         {
-            proxyRequest.Content = new StreamContent(request.Body);
+            Path = $"{baseUri.AbsolutePath.TrimEnd('/')}/{request.Path.Value?.TrimStart('/')}",
+            Query = request.QueryString.HasValue ? request.QueryString.Value!.TrimStart('?') : string.Empty
+        };
+
+        var destinationUri = builder.Uri;
+
+        using var proxyRequest = new HttpRequestMessage(new HttpMethod(request.Method), destinationUri);
+
+        // Проверяем через IHttpRequestBodyDetectionFeature, может ли запрос содержать тело.
+        // Это круче, чем вручную проверять Content-Length и Transfer-Encoding.
+        if (request.HttpContext.Features.Get<IHttpRequestBodyDetectionFeature>()?.CanHaveBody == true)
+        {
+            // Обертка нужна, чтобы StreamContent не закрыл request.Body.
+            proxyRequest.Content = new StreamContent(new NonClosingStream(request.Body));
         }
 
         foreach (var header in request.Headers)
         {
             if (string.Equals(header.Key, "Host", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (HopByHopHeaders.Contains(header.Key))
                 continue;
 
             if (!proxyRequest.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray()))
@@ -39,11 +68,26 @@ public class Router : IRouter
             }
         }
 
+        var remoteIp = context.Connection.RemoteIpAddress?.ToString();
+        if (!string.IsNullOrEmpty(remoteIp))
+        {
+            if (request.Headers.TryGetValue("X-Forwarded-For", out var existingFor))
+                proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", $"{existingFor}, {remoteIp}");
+            else
+                proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", remoteIp);
+        }
+
+        proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Proto", request.Scheme);
+        proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Host", request.Host.Value);
+
         proxyRequest.Headers.Host = proxyRequest.RequestUri?.Host;
 
         try
         {
-            using var response = await _httpClient.SendAsync(proxyRequest, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+            using var response = await _httpClient.SendAsync(
+                proxyRequest,
+                HttpCompletionOption.ResponseHeadersRead,
+                context.RequestAborted);
 
             context.Response.StatusCode = (int)response.StatusCode;
 
