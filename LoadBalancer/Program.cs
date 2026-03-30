@@ -1,51 +1,26 @@
-using Microsoft.AspNetCore.Mvc;
-using System.IO;
+using LoadBalancer.API.Rout;
+using IRouter = LoadBalancer.API.Rout.IRouter;
 
-namespace LoadBalancer;
+var builder = WebApplication.CreateBuilder(args);
 
-public class Program
-{
-    public static void Main(string[] args)
+builder.Services
+    .AddHttpClient<IRouter, Router>()
+    .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        var builder = WebApplication.CreateBuilder(args);
-        var app = builder.Build();
-
-
-        app.Map("/{**path}", async (
-            HttpContext context
-            ,string path
-            ) =>
+        return new SocketsHttpHandler
         {
-            var backendsConfig = builder.Configuration
-            .GetSection("Settings:Backends")
-            .Get<List<BackendConfig>>();
+            // Обновляем соединения, чтобы клиент периодически заново резолвил DNS
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
 
-            var server_1 = backendsConfig?.FirstOrDefault();
-            if (server_1 == null)
-            {
-                context.Response.StatusCode = 503;
-                await context.Response.WriteAsync("No backend configured");
-                return;
-            }
+            // Ограничение числа соединений на один backend
+            MaxConnectionsPerServer = 50,
 
-            var targetUrl = $"{server_1.Address}/{path}{context.Request.QueryString}";
+            // Сколько неиспользуемое соединение может жить в пуле
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
+        };
+    });
+var app = builder.Build();
 
-            using var client = new HttpClient();
-            var response = await client.GetAsync(targetUrl);
-            await response.Content.CopyToAsync(context.Response.Body);
-        });
+app.UseMiddleware<RoutingMiddleware>();
 
-
-        app.Run();
-    }
-}
-
-public class BackendConfig
-{
-    public string Name { get; set; } = string.Empty;
-    public string Host { get; set; } = string.Empty;
-    public string Port { get; set; } = string.Empty ;
-
-    // ������� �������� ��� ��������� ������� ������
-    public string Address => $"http://{Host}:{Port}";
-}
+app.Run();
