@@ -1,6 +1,28 @@
 using LoadBalancer.API.Rout;
 using IRouter = LoadBalancer.API.Rout.IRouter;
 
+var cache = new ServiceCache();
+
+// создаём snapshot
+var snapshot = ImmutableDictionary<string, ImmutableList<ServiceInstance>>
+    .Empty
+    .Add("users-service", ImmutableList.Create(
+        new ServiceInstance("1", "10.0.0.1", 8080),
+        new ServiceInstance("2", "10.0.0.2", 8080)
+    ));
+
+// обновляем
+cache.UpdateSnapshot(snapshot);
+
+// читаем
+var instances = cache.GetInstances("users-service");
+
+foreach (var i in instances)
+{
+    Console.WriteLine($"{i.Host}:{i.Port}");
+}
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
