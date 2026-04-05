@@ -1,3 +1,4 @@
+using LoadBalancer.API.Balance;
 using LoadBalancer.API.Rout;
 using LoadBalancer.API.ServiceCache;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,7 @@ builder.Services
 
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
+builder.Services.AddSingleton<BalanceAlgoritm>();
 
 var app = builder.Build();
 
