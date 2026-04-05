@@ -1,3 +1,4 @@
+using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
 using System.Threading;
 

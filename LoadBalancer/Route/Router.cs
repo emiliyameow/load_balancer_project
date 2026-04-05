@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http.Features;
 
-namespace LoadBalancer.API;
+namespace LoadBalancer.API.Route;
 
 public class Router : IRouter
 {

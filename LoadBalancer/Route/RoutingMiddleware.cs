@@ -1,4 +1,4 @@
-﻿namespace LoadBalancer.API;
+﻿namespace LoadBalancer.API.Route;
 
 public class RoutingMiddleware
 {

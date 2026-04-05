@@ -1,4 +1,4 @@
-namespace DefaultNamespace;
+namespace LoadBalancer.API.ServiceCache;
 
 public record ServiceInstance(
     string Id,        // уникальный id (host:port)

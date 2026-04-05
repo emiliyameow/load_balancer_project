@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backend", "Backend\Backend.csproj", "{4388F863-F203-494E-8D74-F2E20FBF5CBF}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LoadBalancer", "LoadBalancer", "{787ADBE1-1B29-8F26-809F-06AB3FC80735}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadBalancer.API", "LoadBalancer\LoadBalancer.API.csproj", "{916CFF22-BB99-45A5-84D6-89E5963B3D58}"
 EndProject
 Global
@@ -46,8 +44,5 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{916CFF22-BB99-45A5-84D6-89E5963B3D58} = {787ADBE1-1B29-8F26-809F-06AB3FC80735}
 	EndGlobalSection
 EndGlobal
