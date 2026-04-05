@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http.Features;
 
 namespace LoadBalancer.API.Rout;
-
 public class Router : IRouter
 {
     private readonly HttpClient _httpClient;

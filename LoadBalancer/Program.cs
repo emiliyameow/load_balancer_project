@@ -1,4 +1,7 @@
 using LoadBalancer.API.Rout;
+using LoadBalancer.API.ServiceCache;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Immutable;
 using IRouter = LoadBalancer.API.Rout.IRouter;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,8 +22,29 @@ builder.Services
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
         };
     });
+
+// добавляем синглтон - кэш
+builder.Services.AddSingleton<ServiceCacheHandler>();
+
 var app = builder.Build();
 
 app.UseMiddleware<RoutingMiddleware>();
+
+
+// создаём snapshot
+var cache = app.Services.GetService<ServiceCacheHandler>();
+var backendsConfig = app.Configuration
+        .GetSection("Settings:Backends")
+        .Get<List<BackendConfig>>()
+        .Select(b => new ServiceInstance(b.Name, b.Host, b.Port))
+        .ToImmutableList();
+
+var snapshot = ImmutableDictionary<string, ImmutableList<ServiceInstance>>
+    .Empty
+    .Add("users-service",
+    backendsConfig);
+
+// обновляем кэш (добавляем список всех серверов из конфига)
+cache.UpdateSnapshot(snapshot);
 
 app.Run();

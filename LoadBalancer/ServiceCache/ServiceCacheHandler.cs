@@ -2,7 +2,9 @@ using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
 using System.Threading;
 
-public class ServiceCache
+namespace LoadBalancer.API.ServiceCache;
+
+public class ServiceCacheHandler
 {
     // snapshot (атомарно заменяется)
     private ImmutableDictionary<string, ImmutableList<ServiceInstance>> _cache
