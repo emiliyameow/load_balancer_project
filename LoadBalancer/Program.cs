@@ -35,6 +35,9 @@ builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
 
+// добавляем фоновую службу HealtCheck
+builder.Services.AddHostedService<HealthCheckHostedService>();
+
 var app = builder.Build();
 
 app.UseMiddleware<RoutingMiddleware>();
