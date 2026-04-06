@@ -1,7 +1,7 @@
 using LoadBalancer.API.Rout;
 using LoadBalancer.API.ServiceCache;
-using Microsoft.Extensions.Configuration;
 using System.Collections.Immutable;
+using LoadBalancer.API.HealthCheck;
 using IRouter = LoadBalancer.API.Rout.IRouter;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,8 +23,20 @@ builder.Services
         };
     });
 
+builder.Services.Configure<HealthCheckSettings>(settings =>
+{
+    builder.Configuration.GetSection("Settings:Backends").Bind(settings.Backends);
+    builder.Configuration.GetSection("Settings:HealthCheck").Bind(settings);
+});
+
+builder.Services.AddSingleton<IHealthChecker, HealthChecker>();
+builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
+
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
+
+// добавляем фоновую службу HealtCheck
+builder.Services.AddHostedService<HealthCheckHostedService>();
 
 var app = builder.Build();
 

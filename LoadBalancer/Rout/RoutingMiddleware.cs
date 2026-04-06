@@ -34,7 +34,7 @@ public class RoutingMiddleware
         }
 
         // формируем адрес сервера
-        var targetUrl = $"http://{server_1.Address}";
+        var targetUrl = $"{server_1.Address}";
 
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
