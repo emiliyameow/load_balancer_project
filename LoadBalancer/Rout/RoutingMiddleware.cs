@@ -1,5 +1,7 @@
 using IRouter = LoadBalancer.API.Rout.IRouter;
 using LoadBalancer.API.ServiceCache;
+using LoadBalancer.API.Balance;
+using LoadBalancer.API.HealthCheck;
 
 namespace LoadBalancer.API.Rout;
 
@@ -12,29 +14,37 @@ public class RoutingMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, IRouter router, ServiceCacheHandler serversCache)
+    public async Task InvokeAsync(
+        HttpContext context, 
+        IRouter router, 
+        ServiceCacheHandler serversCache,
+        BalanceAlgoritm balanceAlgoritm)
     {
         // получаем список серверов из кэша
-        var backendsConfig = serversCache.GetInstances("users-service")
-            .Select(backendsConfig => new BackendConfig()
-            {
-                Host = backendsConfig.Host,
-                Port = backendsConfig.Port,
-                Name = backendsConfig.Id
-            })
-            .ToList();
+        var serverConditions = serversCache.GetInstances("users-service").ToList();
 
         // берем первый сервер (для тестирования)
-        var server_1 = backendsConfig?.FirstOrDefault();
-        if (server_1 == null)
+        ServerCondition selectedServer;
+        try
+        {
+            selectedServer = balanceAlgoritm.GetFreeServer(serverConditions);
+        }
+        catch (BalanceException ex)
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             await context.Response.WriteAsync("Backend is not found");
+            await context.Response.WriteAsync($"Backend selection failed: {ex.Message}");
+            return;
+        }
+        catch (Exception)
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            await context.Response.WriteAsync("Internal balancing error");
             return;
         }
 
         // формируем адрес сервера
-        var targetUrl = $"{server_1.Address}";
+        var targetUrl = $"{selectedServer.ServerInfo.Address}";
 
         if (string.IsNullOrWhiteSpace(targetUrl))
         {

@@ -45,10 +45,9 @@ public class HealthCheckHostedService : BackgroundService
             _logger.LogTrace("Начался health check цикл");
             var results = await _healthChecker.CheckAllServersAsync();
             var aliveBackends = results.Where(x => x.IsAlive)
-                .Select(b => new ServiceInstance(b.ServerInfo.Name, b.ServerInfo.Host, b.ServerInfo.Port))
                 .ToImmutableList();
 
-            var snapshot = ImmutableDictionary<string, ImmutableList<ServiceInstance>>
+            var snapshot = ImmutableDictionary<string, ImmutableList<ServerCondition>>
                 .Empty
                 .Add("users-service",
                 aliveBackends);

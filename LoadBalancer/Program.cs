@@ -35,8 +35,8 @@ builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
 
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
+// добавляем синглтон - балансировщик
 builder.Services.AddSingleton<BalanceAlgoritm>();
-
 // добавляем фоновую службу HealtCheck
 builder.Services.AddHostedService<HealthCheckHostedService>();
 
@@ -44,21 +44,35 @@ var app = builder.Build();
 
 app.UseMiddleware<RoutingMiddleware>();
 
-
 // создаём snapshot
-var cache = app.Services.GetService<ServiceCacheHandler>();
-var backendsConfig = app.Configuration
-        .GetSection("Settings:Backends")
-        .Get<List<BackendConfig>>()
-        .Select(b => new ServiceInstance(b.Name, b.Host, b.Port))
-        .ToImmutableList();
-
-var snapshot = ImmutableDictionary<string, ImmutableList<ServiceInstance>>
-    .Empty
-    .Add("users-service",
-    backendsConfig);
-
-// обновляем кэш (добавляем список всех серверов из конфига)
-cache.UpdateSnapshot(snapshot);
+InitialSnapshot(app);
 
 app.Run();
+
+static void InitialSnapshot(WebApplication app)
+{
+    var cache = app.Services.GetService<ServiceCacheHandler>();
+    var backendsConfig = app.Configuration
+            .GetSection("Settings:Backends")
+            .Get<List<BackendConfig>>()
+            .Select(b => new ServerCondition
+            {
+                IsAlive = true,
+                Weight = 0,
+                ServerInfo = new BackendConfig
+                {
+                    Name = b.Name,
+                    Port = b.Port,
+                    Host = b.Host,
+                }
+            })
+            .ToImmutableList();
+
+    var snapshot = ImmutableDictionary<string, ImmutableList<ServerCondition>>
+        .Empty
+        .Add("users-service",
+        backendsConfig);
+
+    // обновляем кэш (добавляем список всех серверов из конфига)
+    cache.UpdateSnapshot(snapshot);
+}

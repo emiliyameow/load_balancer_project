@@ -1,3 +1,5 @@
+using LoadBalancer.API.HealthCheck;
+
 namespace LoadBalancer.API.Balance;
 
 public interface IBalanceStrategy
