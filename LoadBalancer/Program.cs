@@ -1,3 +1,4 @@
+using LoadBalancer.API.Balance;
 using LoadBalancer.API.Rout;
 using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
@@ -34,6 +35,7 @@ builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
 
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
+builder.Services.AddSingleton<BalanceAlgoritm>();
 
 // добавляем фоновую службу HealtCheck
 builder.Services.AddHostedService<HealthCheckHostedService>();
