@@ -70,7 +70,12 @@ public class ServiceDiscoveryUpdater : BackgroundService
         //_cache.UpdateSnapshot(snapshot);
         ApplyDiff(snapshot);
 
-        _logger.LogInformation("Service cache updated: {Count} services", snapshot.Count);
+        var totalInstances = snapshot.Sum(s => s.Value.Count);
+
+        _logger.LogInformation(
+            "Service cache updated: {Services} services, {Instances} instances",
+            snapshot.Count,
+            totalInstances);
     }
     
     private void ApplyDiff(
