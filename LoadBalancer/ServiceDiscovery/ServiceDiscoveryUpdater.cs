@@ -121,7 +121,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
         // логируем diff
         LogDiff(service, added, removed, updated);
 
-        // ❗ вместо полного replace — точечное обновление
+        // вместо полного replace — точечное обновление
 
         var result = oldInstances.ToDictionary(x => x.ServerInfo.Address);
 

@@ -24,6 +24,8 @@ builder.Services
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
         };
     });
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
 builder.Services.Configure<HealthCheckSettings>(settings =>
 {
