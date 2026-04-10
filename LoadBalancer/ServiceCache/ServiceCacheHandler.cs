@@ -3,15 +3,14 @@ using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
 using System.Threading;
 
+
 namespace LoadBalancer.API.ServiceCache;
 
 public class ServiceCacheHandler
 {
-    // snapshot (атомарно заменяется)
     private ImmutableDictionary<string, ImmutableList<ServerCondition>> _cache
         = ImmutableDictionary<string, ImmutableList<ServerCondition>>.Empty;
 
-    // Получить все инстансы сервиса
     public IReadOnlyList<ServerCondition> GetInstances(string serviceName)
     {
         var snapshot = _cache;
@@ -21,16 +20,47 @@ public class ServiceCacheHandler
             : ImmutableList<ServerCondition>.Empty;
     }
 
-    // Получить ВСЕ сервисы (иногда нужно)
     public IReadOnlyDictionary<string, ImmutableList<ServerCondition>> GetAll()
     {
         return _cache;
     }
-
-    // Полная замена snapshot (будем использовать позже)
+    
     public void UpdateSnapshot(
         ImmutableDictionary<string, ImmutableList<ServerCondition>> newSnapshot)
     {
         Interlocked.Exchange(ref _cache, newSnapshot);
     }
+
+    public void AddOrUpdateService(string service, ImmutableList<ServerCondition> instances)
+    {
+        while (true)
+        {
+            var snapshot = _cache;
+
+            var updated = snapshot.SetItem(service, instances);
+
+            var original = Interlocked.CompareExchange(ref _cache, updated, snapshot);
+
+            if (ReferenceEquals(original, snapshot))
+                return; // success
+        }
+    }
+    public void RemoveService(string service)
+    {
+        while (true)
+        {
+            var snapshot = _cache;
+
+            if (!snapshot.ContainsKey(service))
+                return;
+
+            var updated = snapshot.Remove(service);
+
+            var original = Interlocked.CompareExchange(ref _cache, updated, snapshot);
+
+            if (ReferenceEquals(original, snapshot))
+                return;
+        }
+    }
+    
 }
