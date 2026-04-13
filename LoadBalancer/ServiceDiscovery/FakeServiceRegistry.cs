@@ -13,6 +13,9 @@ public class FakeServiceRegistry : IServiceRegistry
         _settings = settings;
     }
 
+    /// <summary>
+    /// Получает список серверов из appsettings.json.
+    /// </summary>
     public Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync()
     {
         var current = _settings.CurrentValue;

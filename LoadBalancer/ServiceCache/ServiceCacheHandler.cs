@@ -45,22 +45,5 @@ public class ServiceCacheHandler
                 return; // success
         }
     }
-    public void RemoveService(string service)
-    {
-        while (true)
-        {
-            var snapshot = _cache;
-
-            if (!snapshot.ContainsKey(service))
-                return;
-
-            var updated = snapshot.Remove(service);
-
-            var original = Interlocked.CompareExchange(ref _cache, updated, snapshot);
-
-            if (ReferenceEquals(original, snapshot))
-                return;
-        }
-    }
     
 }
