@@ -18,11 +18,16 @@ public class RoutingMiddleware
         HttpContext context, 
         IRouter router, 
         ServiceCacheHandler serversCache,
+        HealthCache healthCache,
         BalanceAlgoritm balanceAlgoritm)
     {
-        // получаем список серверов из кэша
-        var serverConditions = serversCache.GetInstances("users-service").ToList();
+        var allServerConditions = serversCache.GetInstances("users-service").ToList();
 
+        // фильтруем по только health серверам - проверяем в health cache
+        var serverConditions = allServerConditions
+            .Where(s => healthCache.IsHealthy(s.ServerInfo.Address))
+            .ToList();
+        
         // берем первый сервер (для тестирования)
         ServerCondition selectedServer;
         try
