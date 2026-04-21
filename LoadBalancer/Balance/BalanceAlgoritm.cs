@@ -9,7 +9,7 @@ public class BalanceAlgoritm
 
     public BalanceAlgoritm()
     {
-        _strategy = new MinWeightStrategy();
+        _strategy = new WeightedRoundRobinStrategy();
     }
 
     public BalanceAlgoritm(IBalanceStrategy strategy)
