@@ -27,7 +27,7 @@ public class FakeServiceRegistry : IServiceRegistry
             {
                 ServerInfo = b,
                 IsAlive = true,
-                Weight = 1
+                Weight = b.Weight
             })
             .ToList();
 
