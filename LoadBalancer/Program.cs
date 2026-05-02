@@ -52,7 +52,13 @@ builder.Services.AddSingleton<IServiceRegistry, FakeServiceRegistry>();
 
 builder.Services.AddHostedService<ServiceDiscoveryUpdater>();
 
+builder.Services.AddControllers();
+
+
 var app = builder.Build();
+
+app.MapControllers();
+
 
 app.UseMiddleware<RoutingMiddleware>();
 // перенесла создание снэпшота в Service Discovery Updater
