@@ -4,6 +4,8 @@ namespace LoadBalancer.API.Balance;
 
 public class WeightedRoundRobinStrategy : IBalanceStrategy
 {
+
+    public string Name => "round-robin";
     private readonly object _lock = new();
     private int _position;
 

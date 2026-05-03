@@ -1,14 +1,16 @@
-﻿using System;
+﻿namespace LoadBalancer.API.Api.DTO;
 
-/// <summary>
-/// Summary description for Class1
-/// </summary>
-public class Class1
+public class UpdateServerDTO
 {
-	public Class1()
-	{
-		//
-		// TODO: Add constructor logic here
-		//
-	}
+    public string ServiceName { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string? Address { get; set; }
+
+    public string? Host { get; set; }
+
+    public int? Port { get; set; }
+
+    public int? Weight { get; set; }
 }

@@ -3,6 +3,7 @@ using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceCache;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Immutable;
+using LoadBalancer.API.Rout;
 
 namespace LoadBalancer.API.Api.Controllers;
 
@@ -50,9 +51,8 @@ public class BackendController : ControllerBase
     {
         var serverCondition = new ServerCondition
         {
-            ServerInfo = new ServerInfo
+            ServerInfo = new BackendConfig()
             {
-                Address = dto.Address,
                 Port = dto.Port,
                 Name = dto.Name,
                 Host = dto.Host

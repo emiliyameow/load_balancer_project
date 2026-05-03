@@ -6,15 +6,42 @@ public class BalanceAlgoritm
 {
     private readonly object _strategyLock = new();
     private IBalanceStrategy _strategy;
+    private readonly BalanceStrategyRegistry _strategyRegistry;
 
     public BalanceAlgoritm()
     {
         _strategy = new WeightedRoundRobinStrategy();
     }
 
-    public BalanceAlgoritm(IBalanceStrategy strategy)
+    public BalanceAlgoritm(BalanceStrategyRegistry strategyRegistry)
     {
-        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+        _strategyRegistry = strategyRegistry;
+
+        if (!_strategyRegistry.TryGetStrategy("weighted-round-robin", out _strategy))
+            throw new BalanceException("Default balancing algorithm was not registered");
+    }
+
+    public string CurrentAlgorithm
+    {
+        get
+        {
+            lock (_strategyLock)
+            {
+                return _strategy.Name;
+            }
+        }
+    }
+    public bool TrySetStrategy(string algorithm)
+    {
+        if (!_strategyRegistry.TryGetStrategy(algorithm, out var strategy))
+            return false;
+
+        lock (_strategyLock)
+        {
+            _strategy = strategy;
+        }
+
+        return true;
     }
 
     public void SetStrategy(IBalanceStrategy strategy)
@@ -26,6 +53,10 @@ public class BalanceAlgoritm
         {
             _strategy = strategy;
         }
+    }
+    public IReadOnlyCollection<string> GetAvailableAlgorithms()
+    {
+        return _strategyRegistry.GetAvailableAlgorithms();
     }
 
     public ServerCondition GetFreeServer(List<ServerCondition> servers)
