@@ -87,6 +87,27 @@ public class BackendController : ControllerBase
     [HttpPatch("update")]
     public ActionResult UpdateServer([FromBody] UpdateServerDTO dto)
     {
+        var validationResult = ValidateUpdateServerDto(dto);
+
+        if (validationResult is not null)
+            return validationResult;
+
+        var updated = _serviceCache.UpdateServer(
+            dto.ServiceName,
+            dto.Name,
+            dto.Address,
+            dto.Host,
+            dto.Port,
+            dto.Weight
+        );
+
+        if (!updated)
+            return NotFound("Server not found");
+
+        return NoContent();
+    }
+    private ActionResult? ValidateUpdateServerDto(UpdateServerDTO dto)
+    {
         if (string.IsNullOrWhiteSpace(dto.ServiceName))
             return BadRequest("ServiceName is required");
 
@@ -105,19 +126,7 @@ public class BackendController : ControllerBase
         if (dto.Weight.HasValue && dto.Weight.Value <= 0)
             return BadRequest("Weight must be greater than 0");
 
-        var updated = _serviceCache.UpdateServer(
-            dto.ServiceName,
-            dto.Name,
-            dto.Address,
-            dto.Host,
-            dto.Port,
-            dto.Weight
-        );
-
-        if (!updated)
-            return NotFound("Server not found");
-
-        return NoContent();
+        return null;
     }
 
 
