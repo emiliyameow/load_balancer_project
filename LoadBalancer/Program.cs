@@ -38,7 +38,14 @@ builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
 
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
-// добавляем синглтон - балансировщик
+// стратегии балансировки
+builder.Services.AddSingleton<IBalanceStrategy, MinWeightStrategy>();
+builder.Services.AddSingleton<IBalanceStrategy, WeightedRoundRobinStrategy>();
+
+// реестр стратегий
+builder.Services.AddSingleton<BalanceStrategyRegistry>();
+
+// балансировщик
 builder.Services.AddSingleton<BalanceAlgoritm>();
 // добавляем фоновую службу HealtCheck
 builder.Services.AddHostedService<HealthCheckHostedService>();
@@ -52,7 +59,13 @@ builder.Services.AddSingleton<IServiceRegistry, FakeServiceRegistry>();
 
 builder.Services.AddHostedService<ServiceDiscoveryUpdater>();
 
+builder.Services.AddControllers();
+
+
 var app = builder.Build();
+
+app.MapControllers();
+
 
 app.UseMiddleware<RoutingMiddleware>();
 // перенесла создание снэпшота в Service Discovery Updater

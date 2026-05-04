@@ -2,6 +2,8 @@ using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
 using System.Threading;
+using LoadBalancer.API.Api.DTO;
+using LoadBalancer.API.Rout;
 
 
 namespace LoadBalancer.API.ServiceCache;
@@ -58,6 +60,68 @@ public class ServiceCacheHandler
                 return;
             
             // иначе кто-то изменил cache → повторяем попытку
+        }
+    }
+    /// <summary>
+    /// Атомарно обновляет параметры сервера внутри сервиса.
+    /// Сервер ищется по serviceName + serverName.
+    /// </summary>
+    public bool UpdateServer(
+        string serviceName,
+        string serverName,
+        string? address,
+        string? host,
+        int? port,
+        int? weight)
+    {
+        while (true)
+        {
+            var snapshot = _cache;
+
+            if (!snapshot.TryGetValue(serviceName, out var instances))
+                return false;
+
+            var serverIndex = instances.FindIndex(x =>
+                x.ServerInfo.Name == serverName
+            );
+
+            if (serverIndex == -1)
+                return false;
+
+            var oldServer = instances[serverIndex];
+
+            var dto = new ServerDTO
+            {
+                Name = oldServer.ServerInfo.Name,
+                Address = address ?? oldServer.ServerInfo.Address,
+                Host = host ?? oldServer.ServerInfo.Host,
+                Port = port ?? oldServer.ServerInfo.Port
+            };
+
+            var updatedServer = new ServerCondition
+            {
+                ServerInfo = new BackendConfig
+                {
+                    Port = dto.Port,
+                    Name = dto.Name,
+                    Host = dto.Host
+                },
+                IsAlive = oldServer.IsAlive,
+                Weight = weight ?? oldServer.Weight
+            };
+
+            var updatedInstances = instances.SetItem(serverIndex, updatedServer);
+
+            var updatedSnapshot = snapshot.SetItem(serviceName, updatedInstances);
+
+            var original = Interlocked.CompareExchange(
+                ref _cache,
+                updatedSnapshot,
+                snapshot
+            );
+
+            if (ReferenceEquals(original, snapshot))
+                return true;
         }
     }
 }
