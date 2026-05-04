@@ -2,6 +2,8 @@ using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
 using System.Threading;
+using LoadBalancer.API.Api.DTO;
+using LoadBalancer.API.Rout;
 
 
 namespace LoadBalancer.API.ServiceCache;
@@ -88,7 +90,7 @@ public class ServiceCacheHandler
 
             var oldServer = instances[serverIndex];
 
-            var updatedServerInfo = new ServerInfo
+            var dto = new ServerDTO
             {
                 Name = oldServer.ServerInfo.Name,
                 Address = address ?? oldServer.ServerInfo.Address,
@@ -98,7 +100,12 @@ public class ServiceCacheHandler
 
             var updatedServer = new ServerCondition
             {
-                ServerInfo = updatedServerInfo,
+                ServerInfo = new BackendConfig
+                {
+                    Port = dto.Port,
+                    Name = dto.Name,
+                    Host = dto.Host
+                },
                 IsAlive = oldServer.IsAlive,
                 Weight = weight ?? oldServer.Weight
             };
