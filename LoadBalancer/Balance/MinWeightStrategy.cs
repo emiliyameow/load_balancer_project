@@ -4,6 +4,8 @@ namespace LoadBalancer.API.Balance;
 
 public class MinWeightStrategy : IBalanceStrategy
 {
+
+    public string Name => "round-robin";
     public ServerCondition GetFreeServer(List<ServerCondition> servers)
     {
        var aliveServers = BalanceValidation.GetValidatedAliveServers(servers);
