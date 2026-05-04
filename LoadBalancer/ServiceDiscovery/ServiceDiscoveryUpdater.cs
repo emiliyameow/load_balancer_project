@@ -15,8 +15,11 @@ public class ServiceDiscoveryUpdater : BackgroundService
     private readonly ServiceCacheHandler _cache;
     private readonly ILogger<ServiceDiscoveryUpdater> _logger;
     
-    private readonly TimeSpan _maxBackoff = TimeSpan.FromSeconds(30);
-
+    private readonly TimeSpan _maxBackoff = TimeSpan.FromSeconds(1);
+    private readonly TimeSpan _requestTimeout = TimeSpan.FromSeconds(2);
+    private readonly int _maxRetryAttempts = 10;
+    private readonly int _jitterMaxMs = 500;
+    
     public ServiceDiscoveryUpdater(
         IServiceRegistry registry,
         ServiceCacheHandler cache,
@@ -56,29 +59,34 @@ public class ServiceDiscoveryUpdater : BackgroundService
             await SyncAsync(ct);
             return 0;
         }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Service discovery timeout");
+            return Math.Min(attempt + 1, _maxRetryAttempts);
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex,
                 "Service discovery failed (attempt {Attempt})",
                 attempt + 1);
 
-            return attempt + 1;
+            return Math.Min(attempt + 1, _maxRetryAttempts);
         }
     }
-    
+
     /// <summary>
     /// Получает сервисы из registry, строит snapshot и применяет diff.
     /// </summary>
     private async Task SyncAsync(CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(2));
+        cts.CancelAfter(_requestTimeout);
 
-        var services = await _registry.GetServicesAsync();
+        var services = await _registry.GetServicesAsync(cts.Token);
 
         var snapshot = BuildSnapshot(services);
-        
-        ApplyDiff(snapshot);
+
+        await ApplyDiffAsync(snapshot, cts.Token);
 
         var totalInstances = snapshot.Sum(s => s.Value.Count);
 
@@ -87,40 +95,75 @@ public class ServiceDiscoveryUpdater : BackgroundService
             snapshot.Count,
             totalInstances);
     }
-    
     /// <summary>
     /// Сравнивает старый и новый snapshot и определяет diff по сервисам.
     /// </summary>
-    private void ApplyDiff(
-        ImmutableDictionary<string, ImmutableList<ServerCondition>> newSnapshot)
+    private async Task ApplyDiffAsync(
+    ImmutableDictionary<string, ImmutableList<ServerCondition>> newSnapshot,
+    CancellationToken ct)
     {
         var oldSnapshot = _cache.GetAll();
 
-        var allServices = oldSnapshot.Keys
-            .Union(newSnapshot.Keys);
+        var updates = new Dictionary<string, ImmutableList<ServerCondition>>();
 
-        foreach (var service in allServices)
+        foreach (var (service, newInstances) in newSnapshot)
         {
-            oldSnapshot.TryGetValue(service, out var oldInstances);
-            newSnapshot.TryGetValue(service, out var newInstances);
+            ct.ThrowIfCancellationRequested();
 
+            oldSnapshot.TryGetValue(service, out var oldInstances);
             oldInstances ??= ImmutableList<ServerCondition>.Empty;
-            newInstances ??= ImmutableList<ServerCondition>.Empty;
 
             var oldMap = oldInstances.ToDictionary(x => x.ServerInfo.Address);
-            var newMap = newInstances.ToDictionary(x => x.ServerInfo.Address);
 
-            var added = newMap.Keys.Except(oldMap.Keys);
-            var removed = oldMap.Keys.Except(newMap.Keys);
+            var newMap = newInstances
+                .GroupBy(x => x.ServerInfo.Address)
+                .ToDictionary(g => g.Key, g => g.Last());
 
-            var updated = newMap.Keys
-                .Intersect(oldMap.Keys)
-                .Where(k => !AreEqual(oldMap[k], newMap[k]));
+            bool changed = false;
 
-            if (added.Any() || removed.Any() || updated.Any())
+            foreach (var key in oldMap.Keys.Except(newMap.Keys).ToList())
             {
-                ApplyServicePatch(service, oldInstances, newInstances, added, removed, updated);
+                oldMap.Remove(key);
+                changed = true;
+                _logger.LogDebug("Service {Service}: removed {Instance}", service, key);
             }
+
+            foreach (var (key, newValue) in newMap)
+            {
+                if (!oldMap.TryGetValue(key, out var oldValue))
+                {
+                    oldMap[key] = newValue;
+                    changed = true;
+                    _logger.LogDebug("Service {Service}: added {Instance}", service, key);
+                }
+                else if (!AreEqual(oldValue, newValue))
+                {
+                    oldMap[key] = newValue;
+                    changed = true;
+                    _logger.LogDebug("Service {Service}: updated {Instance}", service, key);
+                }
+            }
+
+            if (changed)
+            {
+                updates[service] = oldMap.Values.ToImmutableList();
+            }
+        }
+
+        // удалённые сервисы
+        foreach (var removedService in oldSnapshot.Keys.Except(newSnapshot.Keys))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            _logger.LogDebug("Service {Service}: removed completely", removedService);
+
+            updates[removedService] = ImmutableList<ServerCondition>.Empty;
+        }
+
+        // батчевое применение
+        if (updates.Count > 0)
+        {
+            _cache.ApplyBatch(updates, ct);
         }
     }
 
@@ -181,7 +224,9 @@ public class ServiceDiscoveryUpdater : BackgroundService
     }
 
     /// <summary>
-    /// Вычисляет задержку с exponential backoff и jitter.
+    /// Вычисляет, сколько подождать перед следующей попыткой запроса к registry.
+    /// - чем больше ошибок подряд — тем дольше ждём (но не бесконечно)
+    /// - добавляем случайность (jitter), чтобы не было синхронных пиков
     /// </summary>
     private TimeSpan CalculateDelay(int attempt)
     {
@@ -189,7 +234,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
             _maxBackoff.TotalSeconds,
             Math.Pow(2, attempt));
         
-        var jitterMs = Random.Shared.Next(0, 500);
+        var jitterMs = Random.Shared.Next(0, _jitterMaxMs);
 
         return TimeSpan.FromSeconds(backoffSeconds) +
                TimeSpan.FromMilliseconds(jitterMs);

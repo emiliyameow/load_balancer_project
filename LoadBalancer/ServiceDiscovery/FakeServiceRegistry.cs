@@ -16,7 +16,8 @@ public class FakeServiceRegistry : IServiceRegistry
     /// <summary>
     /// Получает список серверов из appsettings.json.
     /// </summary>
-    public Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync()
+    /// <param name="ctsToken"></param>
+    public Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync(CancellationToken ctsToken)
     {
         var current = _settings.CurrentValue;
 
