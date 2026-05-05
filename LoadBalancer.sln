@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backend", "Backend\Backend.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadBalancer.API", "LoadBalancer\LoadBalancer.API.csproj", "{916CFF22-BB99-45A5-84D6-89E5963B3D58}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoadBalancer.IntegrationTests", "LoadBalancer.IntegrationTests\LoadBalancer.IntegrationTests.csproj", "{07930433-8BD1-4C5A-AEA6-244652430569}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{916CFF22-BB99-45A5-84D6-89E5963B3D58}.Release|x64.Build.0 = Release|Any CPU
 		{916CFF22-BB99-45A5-84D6-89E5963B3D58}.Release|x86.ActiveCfg = Release|Any CPU
 		{916CFF22-BB99-45A5-84D6-89E5963B3D58}.Release|x86.Build.0 = Release|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Debug|x64.Build.0 = Debug|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Debug|x86.Build.0 = Debug|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Release|x64.ActiveCfg = Release|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Release|x64.Build.0 = Release|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Release|x86.ActiveCfg = Release|Any CPU
+		{07930433-8BD1-4C5A-AEA6-244652430569}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
