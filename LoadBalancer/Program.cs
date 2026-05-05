@@ -3,84 +3,70 @@ using LoadBalancer.API.Rout;
 using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
 using LoadBalancer.API.HealthCheck;
+using LoadBalancer.API.ServiceDiscovery;
 using IRouter = LoadBalancer.API.Rout.IRouter;
 
-namespace LoadBalancer.API;
+var builder = WebApplication.CreateBuilder(args);
 
-public class Program
-{
-     public static void Main(string[] args)
+builder.Services
+    .AddHttpClient<IRouter, Router>()
+    .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        var builder = WebApplication.CreateBuilder(args);
-
-        builder.Services
-            .AddHttpClient<IRouter, Router>()
-            .ConfigurePrimaryHttpMessageHandler(() =>
-            {
-                return new SocketsHttpHandler
-                {
-                    // Обновляем соединения, чтобы клиент периодически заново резолвил DNS
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(2),
-
-                    // Ограничение числа соединений на один backend
-                    MaxConnectionsPerServer = 50,
-
-                    // Сколько неиспользуемое соединение может жить в пуле
-                    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
-                };
-            });
-
-        builder.Services.Configure<HealthCheckSettings>(settings =>
+        return new SocketsHttpHandler
         {
-            builder.Configuration.GetSection("Settings:Backends").Bind(settings.Backends);
-            builder.Configuration.GetSection("Settings:HealthCheck").Bind(settings);
-        });
+            // Обновляем соединения, чтобы клиент периодически заново резолвил DNS
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
 
-        builder.Services.AddSingleton<IHealthChecker, HealthChecker>();
-        builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
+            // Ограничение числа соединений на один backend
+            MaxConnectionsPerServer = 50,
 
-        // добавляем синглтон - кэш
-        builder.Services.AddSingleton<ServiceCacheHandler>();
-        // добавляем синглтон - балансировщик
-        builder.Services.AddSingleton<BalanceAlgoritm>();
-        // добавляем фоновую службу HealtCheck
-        builder.Services.AddHostedService<HealthCheckHostedService>();
+            // Сколько неиспользуемое соединение может жить в пуле
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
+        };
+    });
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-        var app = builder.Build();
+builder.Services.Configure<HealthCheckSettings>(settings =>
+{
+    builder.Configuration.GetSection("Settings:Backends").Bind(settings.Backends);
+    builder.Configuration.GetSection("Settings:HealthCheck").Bind(settings);
+});
 
-        app.UseMiddleware<RoutingMiddleware>();
+builder.Services.AddSingleton<IHealthChecker, HealthChecker>();
+builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
 
-        // создаём snapshot
-        InitialSnapshot(app);
+// добавляем синглтон - кэш
+builder.Services.AddSingleton<ServiceCacheHandler>();
+// стратегии балансировки
+builder.Services.AddSingleton<IBalanceStrategy, MinWeightStrategy>();
+builder.Services.AddSingleton<IBalanceStrategy, WeightedRoundRobinStrategy>();
 
-        app.Run();
-    }
+// реестр стратегий
+builder.Services.AddSingleton<BalanceStrategyRegistry>();
 
-    static void InitialSnapshot(WebApplication app)
-    {
-        var cache = app.Services.GetService<ServiceCacheHandler>();
-        var backendsConfig = app.Configuration
-                .GetSection("Settings:Backends")
-                .Get<List<BackendConfig>>()
-                .Select(b => new ServerCondition
-                {
-                    IsAlive = true,
-                    Weight = 0,
-                    ServerInfo = new BackendConfig
-                    {
-                        Name = b.Name,
-                        Port = b.Port,
-                        Host = b.Host,
-                    }
-                })
-                .ToImmutableList();
+// балансировщик
+builder.Services.AddSingleton<BalanceAlgoritm>();
+// добавляем фоновую службу HealtCheck
+builder.Services.AddHostedService<HealthCheckHostedService>();
+// добавляем синглтон - хелф кэш
+builder.Services.AddSingleton<HealthCache>();
 
-        var snapshot = ImmutableDictionary<string, ImmutableList<ServerCondition>>
-            .Empty
-            .Add("users-service",
-            backendsConfig);
+builder.Services.Configure<Settings>(
+    builder.Configuration.GetSection("Settings"));
 
-        // обновляем кэш (добавляем список всех серверов из конфига)
-        cache.UpdateSnapshot(snapshot);
-    }
-}
+builder.Services.AddSingleton<IServiceRegistry, FakeServiceRegistry>();
+
+builder.Services.AddHostedService<ServiceDiscoveryUpdater>();
+
+builder.Services.AddControllers();
+
+
+var app = builder.Build();
+
+app.MapControllers();
+
+
+app.UseMiddleware<RoutingMiddleware>();
+// перенесла создание снэпшота в Service Discovery Updater
+app.Run();

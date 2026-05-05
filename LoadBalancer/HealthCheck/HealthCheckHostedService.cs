@@ -10,17 +10,20 @@ public class HealthCheckHostedService : BackgroundService
     private readonly ServiceCacheHandler _cache;
     private readonly ILogger<HealthCheckHostedService> _logger;
     private readonly TimeSpan _interval;
-
+    private readonly HealthCache _healthCache;
+    
     public HealthCheckHostedService(
         IHealthChecker healthChecker,
         ServiceCacheHandler cache,
         IOptions<HealthCheckSettings> settings,
+        HealthCache healthCache,
         ILogger<HealthCheckHostedService> logger)
     {
         _healthChecker = healthChecker;
         _cache = cache;
         _logger = logger;
         _interval = TimeSpan.FromSeconds(settings.Value.IntervalSeconds);
+        _healthCache = healthCache;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -43,17 +46,15 @@ public class HealthCheckHostedService : BackgroundService
         try
         {
             _logger.LogTrace("Начался health check цикл");
+            // обновляем не кэш сервисов, а обновляем health cache
             var results = await _healthChecker.CheckAllServersAsync();
-            var aliveBackends = results.Where(x => x.IsAlive)
-                .ToImmutableList();
-
+            
+            _healthCache.Update(results);
+            var allBackends = results.ToImmutableList();
+            
             var snapshot = ImmutableDictionary<string, ImmutableList<ServerCondition>>
                 .Empty
-                .Add("users-service",
-                aliveBackends);
-
-            // обновляем кэш (добавляем список всех серверов из конфига)
-            _cache.UpdateSnapshot(snapshot);
+                .Add("users-service", allBackends);
 
             var alive = results.Count(r => r.IsAlive);
             _logger.LogDebug("Health check completed: {Alive}/{Total} servers alive",
