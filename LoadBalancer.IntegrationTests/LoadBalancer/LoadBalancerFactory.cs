@@ -1,4 +1,5 @@
 ﻿using LoadBalancer.API;
+using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.Rout;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -49,6 +50,32 @@ public class LoadBalancerFactory : WebApplicationFactory<Program>
 
             // Регистрируем Router с нашим тестовым HttpClient
             services.AddSingleton<IRouter>(_ => new Router(backendClient));
+
+            var healthCacheDescriptor = services
+                .Where(d => d.ServiceType == typeof(HealthCache))
+                .ToList();
+
+            foreach (var desc in healthCacheDescriptor)
+            {
+                services.Remove(desc);
+            }
+
+            var healthCache = new HealthCache();
+            var servCond = new ServerCondition()
+            {
+                IsAlive = true,
+                Weight = 0,
+                ServerInfo = new BackendConfig()
+                {
+                    Weight = 0,
+                    Host = "localhost",
+                    Name = "Server_1",
+                    Port = 5101
+                }
+            };
+            healthCache.Update(new List<ServerCondition> { servCond });
+
+            services.AddSingleton(healthCache);
 
             // Отключаем фоновые health-check запросы (чтобы не было гонок в тестах)
             //var hcDescriptor = services.SingleOrDefault(
