@@ -35,7 +35,7 @@ public class Program
         app.MapGet("/health", () => Results.Ok(_activeRequestsCounter.ToString()));
 
         app.MapGet("/test", () => Task.FromResult("Server_1!"));
-        app.MapGet("/", () => Task.FromResult("<div>Стартовая страница!<div/>"));
+        app.MapGet("/", () => Task.FromResult("<div>Стартовая страница!</div>"));
 
         app.Run();
     }
