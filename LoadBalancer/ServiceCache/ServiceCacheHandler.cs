@@ -30,6 +30,36 @@ public class ServiceCacheHandler
             ? instances
             : ImmutableList<ServerCondition>.Empty;
     }
+    
+    /// <summary>
+    /// Атомарно обновляет все примененные изменения
+    /// </summary>
+    public void ApplyBatch(
+        Dictionary<string, ImmutableList<ServerCondition>> updates,
+        CancellationToken ct)
+    {
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var snapshot = _cache;
+
+            var updated = snapshot;
+
+            foreach (var (service, instances) in updates)
+            {
+                updated = updated.SetItem(service, instances);
+            }
+
+            var original = Interlocked.CompareExchange(
+                ref _cache,
+                updated,
+                snapshot);
+
+            if (ReferenceEquals(original, snapshot))
+                return;
+        }
+    }
 
     /// <summary>
     /// Возвращает полный snapshot всех сервисов.
@@ -62,6 +92,7 @@ public class ServiceCacheHandler
             // иначе кто-то изменил cache → повторяем попытку
         }
     }
+    
     /// <summary>
     /// Атомарно обновляет параметры сервера внутри сервиса.
     /// Сервер ищется по serviceName + serverName.

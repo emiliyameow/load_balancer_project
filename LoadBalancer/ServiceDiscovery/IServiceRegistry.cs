@@ -9,5 +9,5 @@ namespace LoadBalancer.API.ServiceDiscovery;
 /// </summary>
 public interface IServiceRegistry
 {
-    Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync();
+    Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync(CancellationToken ctsToken);
 }
