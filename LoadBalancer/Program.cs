@@ -1,7 +1,6 @@
 using LoadBalancer.API.Balance;
 using LoadBalancer.API.Rout;
 using LoadBalancer.API.ServiceCache;
-using System.Collections.Immutable;
 using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceDiscovery;
 using IRouter = LoadBalancer.API.Rout.IRouter;
@@ -10,19 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     .AddHttpClient<IRouter, Router>()
-    .ConfigurePrimaryHttpMessageHandler(() =>
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
-        return new SocketsHttpHandler
-        {
-            // Обновляем соединения, чтобы клиент периодически заново резолвил DNS
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        // Обновляем соединения, чтобы клиент периодически заново резолвил DNS
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
 
-            // Ограничение числа соединений на один backend
-            MaxConnectionsPerServer = 50,
+        // Ограничение числа соединений на один backend
+        MaxConnectionsPerServer = 50,
 
-            // Сколько неиспользуемое соединение может жить в пуле
-            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
-        };
+        // Сколько неиспользуемое соединение может жить в пуле
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1)
     });
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
@@ -39,11 +35,12 @@ builder.Services.AddHttpClient<IHealthChecker, HealthChecker>();
 // добавляем синглтон - кэш
 builder.Services.AddSingleton<ServiceCacheHandler>();
 // добавляем синглтон - балансировщик
-builder.Services.AddSingleton<BalanceAlgoritm>();
+builder.Services.AddSingleton<BalanceAlgorithm>();
 // добавляем фоновую службу HealtCheck
 builder.Services.AddHostedService<HealthCheckHostedService>();
 // добавляем синглтон - хелф кэш
 builder.Services.AddSingleton<HealthCache>();
+builder.Services.AddSingleton<IBalanceValidator, BalanceValidator>();
 
 builder.Services.Configure<Settings>(
     builder.Configuration.GetSection("Settings"));

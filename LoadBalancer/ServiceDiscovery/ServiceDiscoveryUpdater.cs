@@ -9,30 +9,20 @@ namespace LoadBalancer.API.ServiceDiscovery;
 /// Фоновый сервис, который периодически обновляет список сервисов,
 /// вычисляет diff и применяет изменения в кэш (incremental update).
 /// </summary>
-public class ServiceDiscoveryUpdater : BackgroundService
+public class ServiceDiscoveryUpdater(
+    IServiceRegistry registry,
+    ServiceCacheHandler cache,
+    ILogger<ServiceDiscoveryUpdater> logger)
+    : BackgroundService
 {
-    private readonly IServiceRegistry _registry;
-    private readonly ServiceCacheHandler _cache;
-    private readonly ILogger<ServiceDiscoveryUpdater> _logger;
-    
     private readonly TimeSpan _maxBackoff = TimeSpan.FromSeconds(30);
-
-    public ServiceDiscoveryUpdater(
-        IServiceRegistry registry,
-        ServiceCacheHandler cache,
-        ILogger<ServiceDiscoveryUpdater> logger)
-    {
-        _registry = registry;
-        _cache = cache;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Основной цикл: запускает sync и повторяет его с backoff.
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        int attempt = 0;
+        var attempt = 0;
 
         attempt = await SafeSync(stoppingToken, attempt);
 
@@ -58,10 +48,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
-                "Service discovery failed (attempt {Attempt})",
-                attempt + 1);
-
+            logger.LogWarning(ex, "Service discovery failed (attempt {Attempt})", attempt + 1);
             return attempt + 1;
         }
     }
@@ -74,7 +61,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromSeconds(2));
 
-        var services = await _registry.GetServicesAsync();
+        var services = await registry.GetServicesAsync();
 
         var snapshot = BuildSnapshot(services);
         
@@ -82,10 +69,8 @@ public class ServiceDiscoveryUpdater : BackgroundService
 
         var totalInstances = snapshot.Sum(s => s.Value.Count);
 
-        _logger.LogInformation(
-            "Service cache updated: {Services} services, {Instances} instances",
-            snapshot.Count,
-            totalInstances);
+        logger.LogInformation("Service cache updated: {Services} services, {Instances} instances", 
+            snapshot.Count, totalInstances);
     }
     
     /// <summary>
@@ -94,7 +79,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
     private void ApplyDiff(
         ImmutableDictionary<string, ImmutableList<ServerCondition>> newSnapshot)
     {
-        var oldSnapshot = _cache.GetAll();
+        var oldSnapshot = cache.GetAll();
 
         var allServices = oldSnapshot.Keys
             .Union(newSnapshot.Keys);
@@ -117,10 +102,8 @@ public class ServiceDiscoveryUpdater : BackgroundService
                 .Intersect(oldMap.Keys)
                 .Where(k => !AreEqual(oldMap[k], newMap[k]));
 
-            if (added.Any() || removed.Any() || updated.Any())
-            {
+            if (added.Any() || removed.Any() || updated.Any()) 
                 ApplyServicePatch(service, oldInstances, newInstances, added, removed, updated);
-            }
         }
     }
 
@@ -154,9 +137,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
             result[u] = instance;
         }
 
-        _cache.AddOrUpdateService(
-            service,
-            result.Values.ToImmutableList());
+        cache.AddOrUpdateService(service, result.Values.ToImmutableList());
     }
     
     /// <summary>
@@ -176,8 +157,7 @@ public class ServiceDiscoveryUpdater : BackgroundService
     /// </summary>
     private bool AreEqual(ServerCondition a, ServerCondition b)
     {
-        return a.ServerInfo.Address == b.ServerInfo.Address &&
-               a.Weight == b.Weight;
+        return a.ServerInfo.Address == b.ServerInfo.Address && a.Weight == b.Weight;
     }
 
     /// <summary>
@@ -185,14 +165,9 @@ public class ServiceDiscoveryUpdater : BackgroundService
     /// </summary>
     private TimeSpan CalculateDelay(int attempt)
     {
-        var backoffSeconds = Math.Min(
-            _maxBackoff.TotalSeconds,
-            Math.Pow(2, attempt));
-        
+        var backoffSeconds = Math.Min(_maxBackoff.TotalSeconds, Math.Pow(2, attempt));
         var jitterMs = Random.Shared.Next(0, 500);
-
-        return TimeSpan.FromSeconds(backoffSeconds) +
-               TimeSpan.FromMilliseconds(jitterMs);
+        return TimeSpan.FromSeconds(backoffSeconds) + TimeSpan.FromMilliseconds(jitterMs);
     }
     
     /// <summary>
@@ -204,13 +179,8 @@ public class ServiceDiscoveryUpdater : BackgroundService
         IEnumerable<string> removed,
         IEnumerable<string> updated)
     {
-        foreach (var a in added)
-            _logger.LogInformation("Service {Service}: added {Instance}", service, a);
-
-        foreach (var r in removed)
-            _logger.LogInformation("Service {Service}: removed {Instance}", service, r);
-
-        foreach (var u in updated)
-            _logger.LogInformation("Service {Service}: updated {Instance}", service, u);
+        foreach (var a in added) logger.LogInformation("Service {Service}: added {Instance}", service, a);
+        foreach (var r in removed) logger.LogInformation("Service {Service}: removed {Instance}", service, r);
+        foreach (var u in updated) logger.LogInformation("Service {Service}: updated {Instance}", service, u);
     }
 }

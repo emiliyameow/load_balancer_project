@@ -1,7 +1,5 @@
 using LoadBalancer.API.HealthCheck;
-using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
-using System.Threading;
 
 
 namespace LoadBalancer.API.ServiceCache;

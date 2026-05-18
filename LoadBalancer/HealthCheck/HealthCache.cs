@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
-using LoadBalancer.API.HealthCheck;
 
 namespace LoadBalancer.API.HealthCheck;
 /// <summary>
-/// хранит именно адрес сервера + его состояние
+/// Хранит именно адрес сервера + его состояние
 /// </summary>
 public class HealthCache
 {
