@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http.Features;
 
 namespace LoadBalancer.API.Rout;
-public class Router : IRouter
+public class Router(HttpClient httpClient) : IRouter
 {
-    private readonly HttpClient _httpClient;
-
     private static readonly HashSet<string> HopByHopHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
         "Connection",
@@ -17,11 +15,6 @@ public class Router : IRouter
         "Upgrade",
         "Proxy-Connection"
     };
-
-    public Router(HttpClient httpClient)
-    {
-        _httpClient = httpClient;
-    }
 
     public async Task RouteAsync(HttpContext context, string targetUrl)
     {
@@ -70,10 +63,10 @@ public class Router : IRouter
         var remoteIp = context.Connection.RemoteIpAddress?.ToString();
         if (!string.IsNullOrEmpty(remoteIp))
         {
-            if (request.Headers.TryGetValue("X-Forwarded-For", out var existingFor))
-                proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", $"{existingFor}, {remoteIp}");
-            else
-                proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", remoteIp);
+            proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For",
+                request.Headers.TryGetValue("X-Forwarded-For", out var existingFor)
+                    ? $"{existingFor}, {remoteIp}"
+                    : remoteIp);
         }
 
         proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Proto", request.Scheme);
@@ -83,7 +76,7 @@ public class Router : IRouter
 
         try
         {
-            using var response = await _httpClient.SendAsync(
+            using var response = await httpClient.SendAsync(
                 proxyRequest,
                 HttpCompletionOption.ResponseHeadersRead,
                 context.RequestAborted);

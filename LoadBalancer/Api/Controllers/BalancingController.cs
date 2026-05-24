@@ -7,24 +7,24 @@ namespace LoadBalancer.API.Api.Controllers;
 [Route("api")]
 public class BalancingController : ControllerBase
 {
-    private readonly BalanceAlgoritm _balanceAlgoritm;
+    private readonly BalanceAlgorithm _balanceAlgorithm;
 
-    public BalancingController(BalanceAlgoritm balanceAlgoritm)
+    public BalancingController(BalanceAlgorithm balanceAlgorithm)
     {
-        _balanceAlgoritm = balanceAlgoritm;
+        _balanceAlgorithm = balanceAlgorithm;
     }
 
     [HttpPatch("change-balancing-algorithm/{algorithm}")]
     public ActionResult ChangeBalancingAlgorithm(string algorithm)
     {
-        var changed = _balanceAlgoritm.TrySetStrategy(algorithm);
+        var changed = _balanceAlgorithm.TrySetStrategy(algorithm);
 
         if (!changed)
             return BadRequest("Unknown balancing algorithm");
 
         return Ok(new
         {
-            currentAlgorithm = _balanceAlgoritm.CurrentAlgorithm
+            currentAlgorithm = _balanceAlgorithm.CurrentAlgorithm
         });
     }
 
@@ -33,8 +33,8 @@ public class BalancingController : ControllerBase
     {
         return Ok(new
         {
-            currentAlgorithm = _balanceAlgoritm.CurrentAlgorithm,
-            availableAlgorithms = _balanceAlgoritm.GetAvailableAlgorithms()
+            currentAlgorithm = _balanceAlgorithm.CurrentAlgorithm,
+            availableAlgorithms = _balanceAlgorithm.GetAvailableAlgorithms()
         });
     }
 }

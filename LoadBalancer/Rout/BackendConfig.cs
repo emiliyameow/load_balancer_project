@@ -8,7 +8,7 @@ public class BackendConfig
     public int Weight { get; set; } = 1;
 
     /// <summary>
-    /// Формирует полный адресс: http://{Host}:{Port}
+    /// Формирует полный адрес: http://{Host}:{Port}
     /// </summary>
     public string Address => $"http://{Host}:{Port}";
 }
