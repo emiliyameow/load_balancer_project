@@ -2,55 +2,151 @@ using LoadBalancer.API.HealthCheck;
 
 namespace LoadBalancer.API.Balance;
 
-public class BalanceAlgorithm : IBalanceAlgorithm
+public class BalanceAlgorithm
 {
+    /// <summary>
+    /// Объект синхронизации для потокобезопасной смены стратегии.
+    /// </summary>
     private readonly object _strategyLock = new();
-    private readonly ILogger<BalanceAlgorithm> _logger;
-    private readonly IBalanceValidator _validator;
+
+    /// <summary>
+    /// Текущая активная стратегия балансировки.
+    /// </summary>
     private IBalanceStrategy _strategy;
 
-    public BalanceAlgorithm(
-        IBalanceStrategy strategy, 
-        IBalanceValidator validator, 
-        ILogger<BalanceAlgorithm> logger)
-    {
-        _strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
-        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    /// <summary>
+    /// Реестр всех доступных стратегий балансировки.
+    /// </summary>
+    private readonly BalanceStrategyRegistry _strategyRegistry;
 
-        _logger.LogInformation("BalanceAlgorithm инициализирован со стратегией: {StrategyName}",
-            _strategy.GetType().Name);
+    /// <summary>
+    /// Создает экземпляр балансировщика
+    /// с дефолтной стратегией Weighted Round Robin.
+    /// </summary>
+    public BalanceAlgorithm()
+    {
+        _strategy = new WeightedRoundRobinStrategy();
     }
 
     /// <summary>
-    /// Изменяет текущую стратегию балансировки на новую.
+    /// Создает экземпляр балансировщика
+    /// с использованием реестра стратегий.
     /// </summary>
-    /// <param name="strategy">Новая реализация стратегии балансировки.</param>
-    public void SetStrategy(IBalanceStrategy strategy)
+    /// <param name="strategyRegistry">
+    /// Реестр доступных стратегий балансировки.
+    /// </param>
+    /// <exception cref="BalanceException">
+    /// Выбрасывается, если стратегия по умолчанию не зарегистрирована.
+    /// </exception>
+    public BalanceAlgorithm(BalanceStrategyRegistry strategyRegistry)
     {
-        ArgumentNullException.ThrowIfNull(strategy);
-        string oldStrategyName;
+        _strategyRegistry = strategyRegistry;
+
+        if (!_strategyRegistry.TryGetStrategy("weighted-round-robin", out _strategy))
+            throw new BalanceException("Default balancing algorithm was not registered");
+    }
+
+    /// <summary>
+    /// Возвращает название текущего алгоритма балансировки.
+    /// </summary>
+    public string CurrentAlgorithm
+    {
+        get
+        {
+            lock (_strategyLock)
+            {
+                return _strategy.Name;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Пытается установить стратегию балансировки по имени.
+    /// </summary>
+    /// <param name="algorithm">
+    /// Название алгоритма балансировки.
+    /// </param>
+    /// <returns>
+    /// true — если стратегия успешно установлена;
+    /// false — если стратегия не найдена.
+    /// </returns>
+    public bool TrySetStrategy(string algorithm)
+    {
+        if (!_strategyRegistry.TryGetStrategy(algorithm, out var strategy))
+            return false;
 
         lock (_strategyLock)
         {
-            oldStrategyName = _strategy.GetType().Name;
             _strategy = strategy;
         }
 
-        _logger.LogWarning("Стратегия балансировки изменена с {OldStrategy} на {NewStrategy}",
-            oldStrategyName, strategy.GetType().Name);
+        return true;
     }
 
     /// <summary>
-    /// Выбирает свободный сервер из предоставленного списка, используя активную стратегию.
+    /// Устанавливает новую стратегию балансировки.
     /// </summary>
-    /// <param name="servers">Список доступных серверов для анализа.</param>
-    /// <returns>Экземпляр <see cref="ServerCondition"/>, выбранный текущим алгоритмом.</returns>
+    /// <param name="strategy">
+    /// Экземпляр стратегии балансировки.
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// Выбрасывается, если strategy равен null.
+    /// </exception>
+    public void SetStrategy(IBalanceStrategy strategy)
+    {
+        if (strategy is null)
+            throw new ArgumentNullException(nameof(strategy));
+
+        lock (_strategyLock)
+        {
+            _strategy = strategy;
+        }
+    }
+
+    /// <summary>
+    /// Возвращает список доступных алгоритмов балансировки.
+    /// </summary>
+    /// <returns>
+    /// Коллекция названий зарегистрированных алгоритмов.
+    /// </returns>
+    public IReadOnlyCollection<string> GetAvailableAlgorithms()
+    {
+        return _strategyRegistry.GetAvailableAlgorithms();
+    }
+
+    /// <summary>
+    /// Возвращает свободный сервер
+    /// с использованием текущей стратегии балансировки.
+    /// </summary>
+    /// <param name="servers">
+    /// Список доступных серверов.
+    /// </param>
+    /// <returns>
+    /// Свободный сервер.
+    /// </returns>
+    /// <exception cref="BalanceException">
+    /// Выбрасывается при ошибке балансировки.
+    /// </exception>
     public ServerCondition GetFreeServer(List<ServerCondition> servers)
     {
-        var readyServers = _validator.GetValidatedAliveServers(servers);
-        IBalanceStrategy activeStrategy;
-        lock (_strategyLock) activeStrategy = _strategy;
-        return activeStrategy.GetFreeServer(readyServers);
+        try
+        {
+            IBalanceStrategy activeStrategy;
+
+            lock (_strategyLock)
+            {
+                activeStrategy = _strategy;
+            }
+
+            return activeStrategy.GetFreeServer(servers);
+        }
+        catch (BalanceException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new BalanceException($"Unexpected balancing error: {ex.Message}");
+        }
     }
 }

@@ -1,16 +1,25 @@
 using LoadBalancer.API.HealthCheck;
+using LoadBalancer.API.Rout;
 using Microsoft.Extensions.Options;
 
 namespace LoadBalancer.API.ServiceDiscovery;
 
-public class FakeServiceRegistry(IOptionsMonitor<Settings> settings) : IServiceRegistry
+public class FakeServiceRegistry : IServiceRegistry
 {
+    private readonly IOptionsMonitor<Settings> _settings;
+
+    public FakeServiceRegistry(IOptionsMonitor<Settings> settings)
+    {
+        _settings = settings;
+    }
+
     /// <summary>
     /// Получает список серверов из appsettings.json.
     /// </summary>
-    public Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync()
+    /// <param name="ctsToken"></param>
+    public Task<Dictionary<string, List<ServerCondition>>> GetServicesAsync(CancellationToken ctsToken)
     {
-        var current = settings.CurrentValue;
+        var current = _settings.CurrentValue;
 
         var result = new Dictionary<string, List<ServerCondition>>();
 

@@ -1,5 +1,9 @@
 using LoadBalancer.API.HealthCheck;
+using LoadBalancer.API.ServiceCache;
 using System.Collections.Immutable;
+using System.Threading;
+using LoadBalancer.API.Api.DTO;
+using LoadBalancer.API.Rout;
 
 
 namespace LoadBalancer.API.ServiceCache;
@@ -25,6 +29,36 @@ public class ServiceCacheHandler
         return snapshot.TryGetValue(serviceName, out var instances)
             ? instances
             : ImmutableList<ServerCondition>.Empty;
+    }
+    
+    /// <summary>
+    /// Атомарно обновляет все примененные изменения
+    /// </summary>
+    public void ApplyBatch(
+        Dictionary<string, ImmutableList<ServerCondition>> updates,
+        CancellationToken ct)
+    {
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var snapshot = _cache;
+
+            var updated = snapshot;
+
+            foreach (var (service, instances) in updates)
+            {
+                updated = updated.SetItem(service, instances);
+            }
+
+            var original = Interlocked.CompareExchange(
+                ref _cache,
+                updated,
+                snapshot);
+
+            if (ReferenceEquals(original, snapshot))
+                return;
+        }
     }
 
     /// <summary>
@@ -58,6 +92,7 @@ public class ServiceCacheHandler
             // иначе кто-то изменил cache → повторяем попытку
         }
     }
+    
     /// <summary>
     /// Атомарно обновляет параметры сервера внутри сервиса.
     /// Сервер ищется по serviceName + serverName.
@@ -86,7 +121,7 @@ public class ServiceCacheHandler
 
             var oldServer = instances[serverIndex];
 
-            var updatedServerInfo = new ServerInfo
+            var dto = new ServerDTO
             {
                 Name = oldServer.ServerInfo.Name,
                 Address = address ?? oldServer.ServerInfo.Address,
@@ -96,7 +131,12 @@ public class ServiceCacheHandler
 
             var updatedServer = new ServerCondition
             {
-                ServerInfo = updatedServerInfo,
+                ServerInfo = new BackendConfig
+                {
+                    Port = dto.Port,
+                    Name = dto.Name,
+                    Host = dto.Host
+                },
                 IsAlive = oldServer.IsAlive,
                 Weight = weight ?? oldServer.Weight
             };

@@ -6,13 +6,19 @@ public class BalanceStrategyRegistry
 
     public BalanceStrategyRegistry(IEnumerable<IBalanceStrategy> strategies)
     {
-        _strategies = strategies.ToDictionary(
-            strategy => strategy.Name,
-            strategy => strategy,
-            StringComparer.OrdinalIgnoreCase
-        );
-    }
+        _strategies = new Dictionary<string, IBalanceStrategy>();
 
+        foreach (var strategy in strategies)
+        {
+            if (_strategies.ContainsKey(strategy.Name))
+            {
+                throw new BalanceException(
+                    $"Balance strategy '{strategy.Name}' already registered");
+            }
+
+            _strategies.Add(strategy.Name, strategy);
+        }
+    }
     public bool TryGetStrategy(string algorithm, out IBalanceStrategy strategy)
     {
         strategy = null!;
