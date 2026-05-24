@@ -8,6 +8,8 @@ namespace LoadBalancer.API.Balance;
 /// </summary>
 public class MinWeightStrategy : IBalanceStrategy
 {
+
+    public string Name => "round-robin";
     public ServerCondition GetFreeServer(List<ServerCondition> servers)
     {
         if (servers == null || servers.Count == 0)

@@ -2,43 +2,42 @@
 
 namespace LoadBalancer.API.Balance;
 
-public class BalanceValidator : IBalanceValidator
+public class BalanceValidation
 {
-    public List<ServerCondition> GetValidatedAliveServers(List<ServerCondition> servers)
+    public static List<ServerCondition> GetValidatedAliveServers(List<ServerCondition> servers)
     {
-        if (servers is null || servers.Count == 0)
-            throw new InvalidServersCollectionException("Список серверов не инициализирован");
+        if (servers is null)
+            throw new InvalidServersCollectionException("Servers list is null.");
+        if (servers.Count == 0)
+            throw new InvalidServersCollectionException("Servers list is empty.");
 
-        var aliveServers = new List<ServerCondition>();
+        var aliveServers = new List<ServerCondition>(servers.Count);
 
         foreach (var server in servers)
         {
             if (server is null)
-                throw new InvalidServersCollectionException("Список содержит пустые серверы");
-            ValidateServerMetadata(server);
-            if (server.IsAlive) aliveServers.Add(server);
+                throw new InvalidServersCollectionException("Servers list contains null elements.");
+
+            if (!server.IsAlive)
+                continue; // Пропускаем неживые сервера
+
+            if (server.ServerInfo is null)
+                throw new InvalidServersCollectionException("Server info is null.");
+            if (string.IsNullOrWhiteSpace(server.ServerInfo.Host))
+
+                throw new InvalidServersCollectionException("Server host is empty.");
+            if (server.ServerInfo.Port <= 0)
+                throw new InvalidServersCollectionException("Server port is invalid.");
+            if (server.Weight <= 0)
+                throw new InvalidServersCollectionException("Server weight must be positive.");
+
+            aliveServers.Add(server);
         }
 
         if (aliveServers.Count == 0)
-            throw new NoAliveServersException("Нет доступных серверов для обработки запроса.");
+            throw new NoAliveServersException("There are no alive servers.");
 
         return aliveServers;
     }
 
-    private static void ValidateServerMetadata(ServerCondition server)
-    {
-        if (server.ServerInfo is null)
-            throw new InvalidServersCollectionException("Отсутствует ServerInfo для сервера из списка");
-        
-        var serverName = server.ServerInfo.Name;
-
-        if (string.IsNullOrWhiteSpace(server.ServerInfo.Host))
-            throw new InvalidServersCollectionException($"Хост пустой для сервера {serverName}");
-
-        if (server.ServerInfo.Port <= 0)
-            throw new InvalidServersCollectionException($"Указан некорректный порт ({server.ServerInfo.Port}) для сервера {serverName}");
-
-        if (server.Weight <= 0)
-            throw new InvalidServersCollectionException($"Вес сервера {serverName} должен быть больше нуля (текущий: {server.Weight})");
-    }
 }
