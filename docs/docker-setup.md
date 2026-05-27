@@ -15,7 +15,7 @@ docker run -d -p 5000:8080 --name lb ^
 
 &#x20; -e "Settings\_\_Backends\_\_1\_\_Port=5102" ^
 
-&#x20; loadbalancer:v1
+&#x20; rokkirovka/loadbalancer:v1
 
 
 
