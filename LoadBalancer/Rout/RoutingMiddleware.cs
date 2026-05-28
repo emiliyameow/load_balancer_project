@@ -1,25 +1,19 @@
-using IRouter = LoadBalancer.API.Rout.IRouter;
 using LoadBalancer.API.ServiceCache;
 using LoadBalancer.API.Balance;
 using LoadBalancer.API.HealthCheck;
 
 namespace LoadBalancer.API.Rout;
 
-public class RoutingMiddleware
+public class RoutingMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-
-    public RoutingMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
+    private readonly RequestDelegate _next = next;
 
     public async Task InvokeAsync(
         HttpContext context, 
         IRouter router, 
         ServiceCacheHandler serversCache,
         HealthCache healthCache,
-        BalanceAlgoritm balanceAlgoritm)
+        BalanceAlgorithm balanceAlgorithm)
     {
         var allServerConditions = serversCache.GetInstances("users-service").ToList();
 
@@ -32,7 +26,7 @@ public class RoutingMiddleware
         ServerCondition selectedServer;
         try
         {
-            selectedServer = balanceAlgoritm.GetFreeServer(serverConditions);
+            selectedServer = balanceAlgorithm.GetFreeServer(serverConditions);
         }
         catch (BalanceException ex)
         {

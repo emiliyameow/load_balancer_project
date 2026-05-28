@@ -1,4 +1,4 @@
-# LoadBalancer
+# Документация по проекту LoadBalancer
 
 ## Назначение
 
