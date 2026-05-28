@@ -1,4 +1,5 @@
 ﻿using LoadBalancer.API.Api.DTO;
+using LoadBalancer.API.Balance;
 using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceCache;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +14,17 @@ namespace LoadBalancer.API.Api.Controllers;
 public class BackendController : ControllerBase
 {   
     private readonly ServiceCacheHandler _serviceCache;
+    private readonly HealthCache _healthCache;
+    private readonly BackendLoadTracker _loadTracker;
 
-    public BackendController(ServiceCacheHandler serviceCache)
+    public BackendController(
+        ServiceCacheHandler serviceCache,
+        HealthCache healthCache,
+        BackendLoadTracker loadTracker)
     {
         _serviceCache = serviceCache;
+        _healthCache = healthCache;
+        _loadTracker = loadTracker;
     }
 
     [HttpGet]
@@ -30,17 +38,7 @@ public class BackendController : ControllerBase
        {
            foreach (var item in service.Value)
            {
-               var server = new ServerDTO
-               {
-                   Address = item.ServerInfo.Address,
-                   Port = item.ServerInfo.Port,
-                   IsAlive = item.IsAlive,
-                   Name = item.ServerInfo.Name,
-                   Host = item.ServerInfo.Host,
-                   ServiceName = service.Key,
-                   Weight = item.Weight
-               };
-               result.Add(server);
+               result.Add(ToDto(service.Key, item));
            }
        }
        return result;
@@ -69,16 +67,7 @@ public class BackendController : ControllerBase
 
         _serviceCache.AddOrUpdateService(dto.ServiceName, updatedInstances);
 
-        var result = new ServerDTO
-        {
-            Address = dto.Address,
-            Port = dto.Port,
-            IsAlive = true,
-            Name = dto.Name,
-            Host = dto.Host,
-            ServiceName = dto.ServiceName,
-            Weight = dto.Weight
-        };
+        var result = ToDto(dto.ServiceName, serverCondition);
 
         return CreatedAtAction(nameof(GetAll), result);
     }
@@ -127,6 +116,34 @@ public class BackendController : ControllerBase
             return BadRequest("Weight must be greater than 0");
 
         return null;
+    }
+
+    private ServerDTO ToDto(string serviceName, ServerCondition item)
+    {
+        var address = item.ServerInfo.Address;
+        var hasHealth = _healthCache.TryGet(address, out var health);
+        var activeRequests = _loadTracker.GetActiveRequests(address);
+        var weight = hasHealth ? health.Weight : item.Weight;
+        var error = hasHealth ? health.Error : "Health check pending";
+
+        if (hasHealth && !health.IsAlive && string.IsNullOrWhiteSpace(error))
+            error = "Backend is not healthy";
+
+        return new ServerDTO
+        {
+            Address = address,
+            Port = item.ServerInfo.Port,
+            IsAlive = hasHealth ? health.IsAlive : item.IsAlive,
+            Name = item.ServerInfo.Name,
+            Host = item.ServerInfo.Host,
+            ServiceName = serviceName,
+            Weight = weight,
+            BalancerActiveRequests = activeRequests,
+            EffectiveWeight = weight + activeRequests,
+            LatencyMs = hasHealth ? health.LatencyMs : null,
+            CheckedAt = hasHealth ? health.CheckedAt : null,
+            Error = error
+        };
     }
 
 

@@ -21,11 +21,11 @@ public class BalanceAlgorithm
 
     /// <summary>
     /// Создает экземпляр балансировщика
-    /// с дефолтной стратегией Weighted Round Robin.
+    /// с дефолтной стратегией минимального веса.
     /// </summary>
     public BalanceAlgorithm()
     {
-        _strategy = new WeightedRoundRobinStrategy();
+        _strategy = new MinWeightStrategy();
     }
 
     /// <summary>
@@ -42,7 +42,7 @@ public class BalanceAlgorithm
     {
         _strategyRegistry = strategyRegistry;
 
-        if (!_strategyRegistry.TryGetStrategy("weighted-round-robin", out _strategy))
+        if (!_strategyRegistry.TryGetStrategy("min-weight", out _strategy))
             throw new BalanceException("Default balancing algorithm was not registered");
     }
 

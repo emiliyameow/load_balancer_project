@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<BalanceStrategyRegistry>();
         services.AddSingleton<BalanceAlgorithm>();
+        services.AddSingleton<BackendLoadTracker>();
 
         // discovery
         services.AddSingleton<IServiceRegistry, FakeServiceRegistry>();
