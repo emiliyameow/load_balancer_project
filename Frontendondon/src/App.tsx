@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, Gauge, Network, Play, RotateCcw, TimerReset } from "lucide-react";
+import { Activity, AlertTriangle, Gauge, Network, Play, Plus, RotateCcw, TimerReset } from "lucide-react";
 import { BACKEND_API_BASE_URL, probeBackends, sendBalancerRequest } from "./api/backend";
 import { FilterBar } from "./components/FilterBar";
 import { MetricStrip } from "./components/MetricStrip";
+import { ServerDrawer } from "./components/ServerDrawer";
 import { ServerTable } from "./components/ServerTable";
 import type { BackendProbe, BalancerResponse, StatusFilter } from "./types/backend";
 
@@ -95,6 +96,8 @@ export default function App() {
   const [responses, setResponses] = useState<BalancerResponse[]>([]);
   const [routeStats, setRouteStats] = useState<Record<string, RouteStat>>({});
   const [colorTheme, setColorTheme] = useState<ColorTheme>(getInitialColorTheme);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingServer, setEditingServer] = useState<BackendProbe | null>(null);
 
   const loadServers = async () => {
     setIsLoading(true);
@@ -168,6 +171,25 @@ export default function App() {
     document.documentElement.dataset.colorTheme = colorTheme;
     window.localStorage.setItem("balancer-color-theme", colorTheme);
   }, [colorTheme]);
+
+  const handleAdd = () => {
+    setEditingServer(null);
+    setDrawerOpen(true);
+  };
+
+  const handleEdit = (server: BackendProbe) => {
+    setEditingServer(server);
+    setDrawerOpen(true);
+  };
+
+  const handleDrawerClose = () => {
+    setDrawerOpen(false);
+    setEditingServer(null);
+  };
+
+  const handleDrawerSuccess = () => {
+    void loadServers();
+  };
 
   const services = useMemo(
     () => Array.from(new Set(servers.map((server) => server.serviceName))).sort(),
@@ -410,6 +432,7 @@ export default function App() {
         onStatusChange={setStatus}
         onServiceChange={setSelectedService}
         onRefresh={() => void loadServers()}
+        onAdd={handleAdd}
       />
 
       <div className="status-line">
@@ -417,7 +440,14 @@ export default function App() {
         <span>Updated {formatTime(lastUpdated)}</span>
       </div>
 
-      <ServerTable servers={filteredServers} />
+      <ServerTable servers={filteredServers} onEdit={handleEdit} />
+
+      <ServerDrawer
+        open={drawerOpen}
+        server={editingServer}
+        onClose={handleDrawerClose}
+        onSuccess={handleDrawerSuccess}
+      />
     </main>
   );
 }

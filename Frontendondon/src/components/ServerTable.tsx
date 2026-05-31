@@ -1,15 +1,17 @@
+import { Pencil } from "lucide-react";
 import type { BackendProbe } from "../types/backend";
 import { StatusBadge } from "./StatusBadge";
 
 interface ServerTableProps {
   servers: BackendProbe[];
+  onEdit?: (server: BackendProbe) => void;
 }
 
 function formatCheckedAt(date: Date | null) {
   return date ? date.toLocaleTimeString() : "Never";
 }
 
-export function ServerTable({ servers }: ServerTableProps) {
+export function ServerTable({ servers, onEdit }: ServerTableProps) {
   if (servers.length === 0) {
     return (
       <section className="empty-state">
@@ -34,6 +36,7 @@ export function ServerTable({ servers }: ServerTableProps) {
             <th>Health ms</th>
             <th>Checked</th>
             <th>Signal</th>
+            {onEdit ? <th>Actions</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -63,6 +66,19 @@ export function ServerTable({ servers }: ServerTableProps) {
               <td className={server.error ? "signal-cell signal-cell--warn" : "signal-cell"}>
                 {server.error ?? "OK"}
               </td>
+              {onEdit ? (
+                <td>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    aria-label={`Edit ${server.name}`}
+                    title="Edit server"
+                    onClick={() => onEdit(server)}
+                  >
+                    <Pencil size={15} aria-hidden="true" />
+                  </button>
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>

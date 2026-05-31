@@ -1,4 +1,4 @@
-import type { BackendProbe, BalancerResponse, ServerDTO } from "../types/backend";
+import type { BackendProbe, BalancerResponse, ServerDTO, CreateServerDTO, UpdateServerDTO } from "../types/backend";
 
 export const BALANCER_PROXY_BASE_URL = "/lb";
 export const BACKEND_API_BASE_URL = "/api/backend";
@@ -81,4 +81,41 @@ export async function sendBalancerRequest(path: string): Promise<BalancerRespons
     latencyMs: Math.round(performance.now() - startedAt),
     requestedAt: new Date()
   };
+}
+
+export async function createBackend(data: CreateServerDTO): Promise<ServerDTO> {
+  const response = await fetch(BACKEND_API_BASE_URL, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${await response.text()}`);
+  }
+
+  return response.json() as Promise<ServerDTO>;
+}
+
+export async function updateBackend(data: UpdateServerDTO): Promise<void> {
+  const response = await fetch(`${BACKEND_API_BASE_URL}/update`, {
+    method: "PATCH",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  if (response.status === 404) {
+    throw new Error("404 Server not found");
+  }
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${await response.text()}`);
+  }
 }

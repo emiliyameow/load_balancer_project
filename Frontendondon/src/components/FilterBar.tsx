@@ -1,4 +1,4 @@
-import { RefreshCw, Search } from "lucide-react";
+import { Plus, RefreshCw, Search } from "lucide-react";
 import type { StatusFilter } from "../types/backend";
 
 interface FilterBarProps {
@@ -11,6 +11,7 @@ interface FilterBarProps {
   onStatusChange: (status: StatusFilter) => void;
   onServiceChange: (service: string) => void;
   onRefresh: () => void;
+  onAdd?: () => void;
 }
 
 const statuses: Array<{ label: string; value: StatusFilter }> = [
@@ -28,7 +29,8 @@ export function FilterBar({
   onQueryChange,
   onStatusChange,
   onServiceChange,
-  onRefresh
+  onRefresh,
+  onAdd
 }: FilterBarProps) {
   return (
     <section className="toolbar" aria-label="Filters and actions">
@@ -70,6 +72,11 @@ export function FilterBar({
       </div>
 
       <div className="toolbar-actions">
+        {onAdd ? (
+          <button className="icon-button" type="button" onClick={onAdd} title="Add server" aria-label="Add server">
+            <Plus size={18} aria-hidden="true" />
+          </button>
+        ) : null}
         <button className="icon-button" type="button" onClick={onRefresh} title="Refresh" aria-label="Refresh">
           <RefreshCw size={18} className={isLoading ? "spin" : ""} aria-hidden="true" />
         </button>

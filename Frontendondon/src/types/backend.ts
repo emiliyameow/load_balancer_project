@@ -15,6 +15,24 @@ export interface ServerDTO {
   error: string | null;
 }
 
+export interface CreateServerDTO {
+  serviceName: string;
+  address: string;
+  port: number;
+  name: string;
+  host: string;
+  weight: number;
+}
+
+export interface UpdateServerDTO {
+  serviceName: string;
+  name: string;
+  address?: string | null;
+  host?: string | null;
+  port?: number | null;
+  weight?: number | null;
+}
+
 export interface BackendProbe {
   address: string;
   name: string;
