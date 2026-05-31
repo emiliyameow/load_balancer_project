@@ -1,3 +1,4 @@
+using LoadBalancer.API.BackendManagement;
 using LoadBalancer.API.Rout;
 
 namespace LoadBalancer.API.Extensions;
@@ -15,6 +16,9 @@ public static class ApplicationBuilderExtensions
     {
         // маршрутизация контроллеров
         app.MapControllers();
+
+        // Minimal API для runtime-управления backend-серверами
+        app.MapBackendApi();
 
         // основной middleware балансировки/роутинга
         app.UseMiddleware<RoutingMiddleware>();

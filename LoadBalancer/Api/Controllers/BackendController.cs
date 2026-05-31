@@ -1,4 +1,10 @@
-﻿using LoadBalancer.API.Api.DTO;
+// Контроллер отключён — заменён на Minimal API в BackendApiEndpoints.cs
+// (RuntimeBackendRegistry + MapBackendApi)
+// Conflict: [Route("api/[controller]")] совпадал с маршрутами Minimal API.
+
+#if false
+
+using LoadBalancer.API.Api.DTO;
 using LoadBalancer.API.Balance;
 using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceCache;
@@ -148,3 +154,5 @@ public class BackendController : ControllerBase
 
 
 }
+
+#endif
