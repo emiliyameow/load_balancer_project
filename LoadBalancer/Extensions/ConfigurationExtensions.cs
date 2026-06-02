@@ -15,6 +15,8 @@ public static class ConfigurationExtensions
             "appsettings.json",
             optional: false,
             reloadOnChange: true);
+        
+        builder.Configuration.AddEnvironmentVariables();
 
         return builder;
     }
