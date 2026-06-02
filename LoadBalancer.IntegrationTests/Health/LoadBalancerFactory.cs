@@ -1,6 +1,7 @@
 ﻿using LoadBalancer.API;
 using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.Rout;
+using LoadBalancer.API.ServiceDiscovery;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +71,7 @@ public class LoadBalancerFactory : WebApplicationFactory<Program>
             // 3. Удаляем оригинальные регистрации
             RemoveService<HealthCheckSettings>(services);
             RemoveService<IHealthChecker>(services);
+            RemoveService<IServiceRegistry>(services);
             RemoveService<IOptionsMonitor<HealthCheckSettings>>(services);
 
             // 4. Создаём мульти-хендлер и клиент
@@ -77,9 +79,29 @@ public class LoadBalancerFactory : WebApplicationFactory<Program>
             var healthClient = new HttpClient(pipeline, disposeHandler: false);
 
             // 5. Регистрируем HealthChecker с моками
+            var registryMock = new Mock<IServiceRegistry>();
+            registryMock
+                .Setup(x => x.GetServicesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Dictionary<string, List<ServerCondition>>
+                {
+                    ["users-service"] = testSettings.Backends
+                        .Select(backend => new ServerCondition
+                        {
+                            ServerInfo = backend,
+                            IsAlive = true,
+                            Weight = backend.Weight
+                        })
+                        .ToList()
+                });
+
             services.AddSingleton(optionsMonitorMock.Object);
+            services.AddSingleton(registryMock.Object);
             services.AddSingleton<IHealthChecker>(_ =>
-                new HealthChecker(healthClient, optionsMonitorMock.Object, NullLogger<HealthChecker>.Instance));
+                new HealthChecker(
+                    healthClient,
+                    optionsMonitorMock.Object,
+                    registryMock.Object,
+                    NullLogger<HealthChecker>.Instance));
         });
     }
 

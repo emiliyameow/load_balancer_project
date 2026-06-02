@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace LoadBalancer.API.Rout;
 public class Router(HttpClient httpClient) : IRouter
@@ -16,7 +16,7 @@ public class Router(HttpClient httpClient) : IRouter
         "Proxy-Connection"
     };
 
-    public async Task RouteAsync(HttpContext context, string targetUrl)
+    public async Task RouteAsync(HttpContext context, string? targetUrl)
     {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {

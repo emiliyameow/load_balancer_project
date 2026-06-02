@@ -1,4 +1,5 @@
 using LoadBalancer.API.Balance;
+using LoadBalancer.API.BackendManagement;
 using LoadBalancer.API.HealthCheck;
 using LoadBalancer.API.ServiceCache;
 using LoadBalancer.API.ServiceDiscovery;
@@ -40,9 +41,12 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<BalanceStrategyRegistry>();
         services.AddSingleton<BalanceAlgorithm>();
+        services.AddSingleton<BackendLoadTracker>();
 
-        // discovery
-        services.AddSingleton<IServiceRegistry, FakeServiceRegistry>();
+        // discovery — RuntimeBackendRegistry хранит как config, так и runtime-добавленные серверы
+        services.AddSingleton<RuntimeBackendRegistry>();
+        services.AddSingleton<IServiceRegistry>(
+            sp => sp.GetRequiredService<RuntimeBackendRegistry>());
 
         // hosted services
         services.AddHostedService<HealthCheckHostedService>();

@@ -15,4 +15,14 @@ public class ServerDTO
     public bool IsAlive { get; set; }
     
     public int Weight { get; set; }
+
+    public int BalancerActiveRequests { get; set; }
+
+    public int EffectiveWeight { get; set; }
+
+    public long? LatencyMs { get; set; }
+
+    public DateTimeOffset? CheckedAt { get; set; }
+
+    public string? Error { get; set; }
 }
