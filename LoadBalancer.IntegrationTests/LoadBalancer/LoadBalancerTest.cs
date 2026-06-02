@@ -39,6 +39,6 @@ public class LoadBalancerTest : IClassFixture<LoadBalancerFactory>
 
         var result = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal("Server_1!", result);
+        Assert.Equal("Server!", result);
     }
 }
