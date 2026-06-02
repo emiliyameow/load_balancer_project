@@ -113,12 +113,6 @@ docker compose up --build
 docker compose down
 ```
 
-## Ограничения текущей реализации
-
-- маршрутизация выполняется для одного логического сервиса: `users-service`;
-- retry между инстансами при backend-ошибках в middleware не реализован;
-- в коде используется стратегия минимального веса (`MinWeightStrategy`), а не weighted round robin.
-
 ## Связанные материалы
 
 - Компонентная диаграмма: `docs/component_diagram.puml`
