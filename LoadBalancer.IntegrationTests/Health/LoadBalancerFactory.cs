@@ -39,7 +39,7 @@ public class LoadBalancerFactory : WebApplicationFactory<Program>
         }
     }
 
-    public BackendFactory GetBackend(string name) =>
+    public BackendFactory? GetBackend(string name) =>
         _backendFactories.FirstOrDefault(b => b.Name == name);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

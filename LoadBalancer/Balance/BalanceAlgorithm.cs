@@ -26,6 +26,12 @@ public class BalanceAlgorithm
     public BalanceAlgorithm()
     {
         _strategy = new MinWeightStrategy();
+        _strategyRegistry = new BalanceStrategyRegistry(
+            new IBalanceStrategy[]
+            {
+                _strategy,
+                new WeightedRoundRobinStrategy()
+            });
     }
 
     /// <summary>

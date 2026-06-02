@@ -69,7 +69,7 @@ public class HealthChecker(
         try
         {
             var requestUri = $"{server.Address.TrimEnd('/')}/{endpoint.TrimStart('/')}";
-            var response = await httpClient.GetAsync(requestUri, cts.Token);
+            using var response = await httpClient.GetAsync(requestUri, cts.Token);
 
             if (response.IsSuccessStatusCode)
             {

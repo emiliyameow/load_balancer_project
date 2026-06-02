@@ -94,6 +94,25 @@
 2. Запустить проект `LoadBalancer`.
 3. Отправлять запросы на адрес балансировщика — он проксирует их на healthy backend.
 
+### Запуск через Docker
+
+```bash
+docker compose up --build
+```
+
+После старта будут доступны:
+
+- frontend: `http://localhost:5173`;
+- load balancer: `http://localhost:5120`;
+- backend API: `http://localhost:5120/api/backend`;
+- proxy test: `http://localhost:5120/test`.
+
+Остановить стенд:
+
+```bash
+docker compose down
+```
+
 ## Ограничения текущей реализации
 
 - маршрутизация выполняется для одного логического сервиса: `users-service`;

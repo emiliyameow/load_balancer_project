@@ -17,10 +17,10 @@ export interface ServerDTO {
 
 export interface CreateServerDTO {
   serviceName: string;
-  address: string;
+  address: string | null;
   port: number;
   name: string;
-  host: string;
+  host: string | null;
   weight: number;
 }
 

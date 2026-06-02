@@ -18,7 +18,14 @@ public class WeightedRoundRobinStrategy : IBalanceStrategy
         if (servers == null || servers.Count == 0)
             throw new NoAliveServersException("Список серверов пуст.");
 
-        var totalWeight = servers.Sum(s => s.Weight);
+        var weightedServers = servers
+            .Where(s => s.Weight > 0)
+            .ToList();
+
+        if (weightedServers.Count == 0)
+            throw new NoAliveServersException("Нет серверов с положительным весом.");
+
+        var totalWeight = weightedServers.Sum(s => s.Weight);
 
         lock (_lock)
         {
@@ -28,13 +35,13 @@ public class WeightedRoundRobinStrategy : IBalanceStrategy
             _position = (_position + 1) % totalWeight;
 
             var accumulatedWeight = 0;
-            foreach (var server in servers)
+            foreach (var server in weightedServers)
             {
                 accumulatedWeight += server.Weight;
                 if (currentPosition < accumulatedWeight) return server;
             }
         }
 
-        return servers[0];
+        return weightedServers[0];
     }
 }

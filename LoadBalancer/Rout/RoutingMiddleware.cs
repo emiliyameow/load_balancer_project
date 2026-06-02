@@ -1,12 +1,15 @@
 using LoadBalancer.API.ServiceCache;
 using LoadBalancer.API.Balance;
 using LoadBalancer.API.HealthCheck;
+using LoadBalancer.API.ServiceDiscovery;
+using System.Collections.Immutable;
 
 namespace LoadBalancer.API.Rout;
 
 public class RoutingMiddleware(RequestDelegate next)
 {
     private readonly RequestDelegate _next = next;
+    private const string DefaultServiceName = "users-service";
 
     public async Task InvokeAsync(
         HttpContext context, 
@@ -14,7 +17,8 @@ public class RoutingMiddleware(RequestDelegate next)
         ServiceCacheHandler serversCache,
         HealthCache healthCache,
         BalanceAlgorithm balanceAlgorithm,
-        BackendLoadTracker loadTracker)
+        BackendLoadTracker loadTracker,
+        IServiceRegistry serviceRegistry)
     {
         if (context.Request.Path.StartsWithSegments("/api"))
         {
@@ -22,7 +26,28 @@ public class RoutingMiddleware(RequestDelegate next)
             return;
         }
 
-        var allServerConditions = serversCache.GetInstances("users-service").ToList();
+        var allServerConditions = serversCache.GetInstances(DefaultServiceName).ToList();
+        if (allServerConditions.Count == 0)
+        {
+            try
+            {
+                allServerConditions = await LoadServiceInstancesAsync(
+                    serviceRegistry,
+                    serversCache,
+                    DefaultServiceName,
+                    context.RequestAborted);
+            }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                await context.Response.WriteAsync("Service registry is unavailable");
+                return;
+            }
+        }
 
         // фильтруем по только health серверам и берем свежую нагрузку из health cache
         var serverConditions = new List<ServerCondition>();
@@ -80,5 +105,19 @@ public class RoutingMiddleware(RequestDelegate next)
 
             await router.RouteAsync(context, targetUrl);
         }
+    }
+
+    private static async Task<List<ServerCondition>> LoadServiceInstancesAsync(
+        IServiceRegistry serviceRegistry,
+        ServiceCacheHandler serversCache,
+        string serviceName,
+        CancellationToken ct)
+    {
+        var services = await serviceRegistry.GetServicesAsync(ct);
+        if (!services.TryGetValue(serviceName, out var instances))
+            return [];
+
+        serversCache.AddOrUpdateService(serviceName, instances.ToImmutableList());
+        return instances;
     }
 }

@@ -11,15 +11,25 @@ public sealed class BackendLoadTracker
     {
         lock (_gate)
         {
+            var useCapacityWeights = string.Equals(
+                balanceAlgorithm.CurrentAlgorithm,
+                "weighted-round-robin",
+                StringComparison.OrdinalIgnoreCase);
+
             var effectiveServers = servers
                 .Select(server =>
                 {
                     var address = server.ServerInfo.Address;
+                    var activeRequests = GetActiveNoLock(address);
+                    var effectiveWeight = useCapacityWeights
+                        ? Math.Max(1, server.ServerInfo.Weight)
+                        : server.Weight + activeRequests;
+
                     return new ServerCondition
                     {
                         ServerInfo = server.ServerInfo,
                         IsAlive = server.IsAlive,
-                        Weight = server.Weight + GetActiveNoLock(address),
+                        Weight = effectiveWeight,
                         LatencyMs = server.LatencyMs,
                         CheckedAt = server.CheckedAt,
                         Error = server.Error

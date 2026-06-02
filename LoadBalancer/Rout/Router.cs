@@ -72,7 +72,7 @@ public class Router(HttpClient httpClient) : IRouter
         proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Proto", request.Scheme);
         proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Host", request.Host.Value);
 
-        proxyRequest.Headers.Host = proxyRequest.RequestUri?.Host;
+        proxyRequest.Headers.Host = destinationUri.Authority;
 
         try
         {

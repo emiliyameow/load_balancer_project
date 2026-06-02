@@ -35,8 +35,8 @@ function toCreateDTO(data: FormData): CreateServerDTO {
   return {
     serviceName: data.serviceName.trim(),
     name: data.name.trim(),
-    address: data.address.trim(),
-    host: data.host.trim(),
+    address: data.address.trim() || null,
+    host: data.host.trim() || null,
     port: Number(data.port),
     weight: Number(data.weight)
   };
@@ -97,12 +97,8 @@ export function ServerDrawer({ open, server, onClose, onSuccess }: ServerDrawerP
     }
 
     if (!edit) {
-      if (!form.address.trim()) {
-        setError("Address is required");
-        return;
-      }
-      if (!form.host.trim()) {
-        setError("Host is required");
+      if (!form.address.trim() && !form.host.trim()) {
+        setError("Address or host is required");
         return;
       }
       if (!form.port || Number(form.port) < 1 || Number(form.port) > 65535) {
@@ -165,7 +161,7 @@ export function ServerDrawer({ open, server, onClose, onSuccess }: ServerDrawerP
             <input
               value={form.address}
               onChange={handleChange("address")}
-              placeholder="127.0.0.1"
+              placeholder="https://127.0.0.1:5001"
             />
           </label>
           <label>

@@ -4,6 +4,7 @@ using LoadBalancer.API.Rout;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,11 +78,18 @@ public class LoadBalancerFactory : WebApplicationFactory<Program>
 
             services.AddSingleton(healthCache);
 
-            // Отключаем фоновые health-check запросы (чтобы не было гонок в тестах)
-            //var hcDescriptor = services.SingleOrDefault(
-            //    d => d.ImplementationType == typeof(LoadBalancer.API.HealthCheck.HealthCheckHostedService));
-            //if (hcDescriptor != null)
-            //    services.Remove(hcDescriptor);
+            // Отключаем фоновые health-check запросы, чтобы тестовый HealthCache
+            // не перезаписывался реальными localhost-проверками.
+            var hostedHealthChecks = services
+                .Where(d =>
+                    d.ServiceType == typeof(IHostedService) &&
+                    d.ImplementationType == typeof(HealthCheckHostedService))
+                .ToList();
+
+            foreach (var desc in hostedHealthChecks)
+            {
+                services.Remove(desc);
+            }
         });
     }
 

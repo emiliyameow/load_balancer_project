@@ -4,13 +4,13 @@ public class ServerDTO
 {
     public string Name { get; set; } =  string.Empty;
 
-    public string ServiceName { get; set; }
+    public string ServiceName { get; set; } = string.Empty;
 
-    public string Address { get; set; }
+    public string Address { get; set; } = string.Empty;
 
     public int Port { get; set; }
 
-    public string Host { get; set; }
+    public string Host { get; set; } = string.Empty;
     
     public bool IsAlive { get; set; }
     

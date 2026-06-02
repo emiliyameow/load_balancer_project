@@ -8,7 +8,7 @@ namespace LoadBalancer.IntegrationTests.Health;
 public class BackendFactory : WebApplicationFactory<Backend.Program>
 {
     private bool _enabled = true;
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     private int _weight = 0; // можно динамически менять нагрузку
 
 

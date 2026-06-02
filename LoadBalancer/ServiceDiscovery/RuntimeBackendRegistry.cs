@@ -16,7 +16,7 @@ public class RuntimeBackendRegistry : IServiceRegistry
     {
         foreach (var backend in settings.CurrentValue.Backends)
         {
-            AddOrReplace(DefaultServiceName, backend, initialWeight: 1);
+            AddOrReplace(DefaultServiceName, backend, initialWeight: NormalizeWeight(backend.Weight));
         }
     }
 
@@ -73,7 +73,11 @@ public class RuntimeBackendRegistry : IServiceRegistry
                 return false;
             }
 
-            registration = new BackendRegistration(serviceName, CopyConfig(serverInfo), initialWeight);
+            var normalizedWeight = NormalizeWeight(initialWeight);
+            var config = CopyConfig(serverInfo);
+            config.Weight = normalizedWeight;
+
+            registration = new BackendRegistration(serviceName, config, normalizedWeight);
             serviceBackends[serverInfo.Name] = registration;
             return true;
         }
@@ -82,6 +86,7 @@ public class RuntimeBackendRegistry : IServiceRegistry
     public bool TryUpdate(
         string serviceName,
         string name,
+        string? scheme,
         string? host,
         int? port,
         int? weight,
@@ -101,17 +106,23 @@ public class RuntimeBackendRegistry : IServiceRegistry
 
             var nextServerInfo = CopyConfig(existing.ServerInfo);
 
+            if (scheme is not null)
+                nextServerInfo.Scheme = scheme;
+
             if (host is not null)
                 nextServerInfo.Host = host;
 
             if (port.HasValue)
                 nextServerInfo.Port = port.Value;
 
+            var nextWeight = NormalizeWeight(weight ?? existing.InitialWeight);
+            nextServerInfo.Weight = nextWeight;
+
             previous = CopyRegistration(existing);
             updated = new BackendRegistration(
                 serviceName,
                 nextServerInfo,
-                weight ?? existing.InitialWeight);
+                nextWeight);
 
             serviceBackends[name] = updated;
             return true;
@@ -146,7 +157,10 @@ public class RuntimeBackendRegistry : IServiceRegistry
     private void AddOrReplace(string serviceName, BackendConfig serverInfo, int initialWeight)
     {
         var serviceBackends = GetOrCreateService(serviceName);
-        var registration = new BackendRegistration(serviceName, CopyConfig(serverInfo), initialWeight);
+        var normalizedWeight = NormalizeWeight(initialWeight);
+        var config = CopyConfig(serverInfo);
+        config.Weight = normalizedWeight;
+        var registration = new BackendRegistration(serviceName, config, normalizedWeight);
         serviceBackends[serverInfo.Name] = registration;
     }
 
@@ -174,8 +188,22 @@ public class RuntimeBackendRegistry : IServiceRegistry
         return new BackendConfig
         {
             Name = source.Name,
+            Scheme = NormalizeScheme(source.Scheme),
             Host = source.Host,
-            Port = source.Port
+            Port = source.Port,
+            Weight = NormalizeWeight(source.Weight)
         };
+    }
+
+    private static int NormalizeWeight(int weight)
+    {
+        return weight > 0 ? weight : 1;
+    }
+
+    private static string NormalizeScheme(string? scheme)
+    {
+        return string.Equals(scheme, "https", StringComparison.OrdinalIgnoreCase)
+            ? "https"
+            : "http";
     }
 }

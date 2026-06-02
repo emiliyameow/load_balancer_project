@@ -32,15 +32,17 @@ public static class BackendApiEndpoints
             var serverInfo = new BackendConfig
             {
                 Name = input.Name,
+                Scheme = input.Scheme ?? "http",
                 Host = input.Host ?? string.Empty,
-                Port = input.Port!.Value
+                Port = input.Port!.Value,
+                Weight = input.Weight!.Value
             };
 
             if (!registry.TryAdd(input.ServiceName, serverInfo, input.Weight!.Value, out var registration))
                 return Results.Conflict("Server already exists");
 
             await SyncServiceCacheAsync(registry, cache, input.ServiceName);
-            WarmHealthCache(healthCache, registration);
+            MarkHealthCheckPending(healthCache, registration);
 
             return Results.Created("/api/backend", ToDto(registration, healthCache, loadTracker));
         });
@@ -58,6 +60,7 @@ public static class BackendApiEndpoints
             if (!registry.TryUpdate(
                     input.ServiceName,
                     input.Name,
+                    input.Scheme,
                     input.Host,
                     input.Port,
                     input.Weight,
@@ -75,7 +78,7 @@ public static class BackendApiEndpoints
             }
 
             await SyncServiceCacheAsync(registry, cache, input.ServiceName);
-            WarmHealthCache(healthCache, updated);
+            MarkHealthCheckPending(healthCache, updated);
 
             return Results.NoContent();
         });
@@ -159,26 +162,30 @@ public static class BackendApiEndpoints
             cache.AddOrUpdateService(serviceName, ImmutableList<ServerCondition>.Empty);
     }
 
-    private static void WarmHealthCache(HealthCache healthCache, BackendRegistration registration)
+    private static void MarkHealthCheckPending(HealthCache healthCache, BackendRegistration registration)
     {
+        if (healthCache.TryGet(registration.ServerInfo.Address, out _))
+            return;
+
         healthCache.Upsert(
             registration.ServerInfo.Address,
             new ServerHealth(
-                true,
+                false,
                 registration.InitialWeight,
-                0,
+                null,
                 DateTimeOffset.UtcNow,
-                null));
+                "Health check pending"));
     }
 
     private static ValidatedBackendInput ValidateCreate(CreateServerDto request)
     {
         var errors = new List<string>();
         var parsedAddress = ParseAddress(request.Address);
-        var serviceName = request.ServiceName.Trim();
-        var name = request.Name.Trim();
+        var serviceName = request.ServiceName?.Trim() ?? string.Empty;
+        var name = request.Name?.Trim() ?? string.Empty;
+        var scheme = parsedAddress.Scheme ?? "http";
         var host = ResolveHost(request.Host, parsedAddress.Host);
-        var port = request.Port > 0 ? request.Port : parsedAddress.Port;
+        var port = parsedAddress.Port ?? (request.Port > 0 ? request.Port : null);
 
         if (string.IsNullOrWhiteSpace(serviceName))
             errors.Add("ServiceName is required");
@@ -188,6 +195,9 @@ public static class BackendApiEndpoints
 
         if (request.Address is not null && string.IsNullOrWhiteSpace(request.Address))
             errors.Add("Address cannot be empty");
+
+        if (!IsValidScheme(scheme))
+            errors.Add("Invalid scheme");
 
         if (string.IsNullOrWhiteSpace(host))
             errors.Add("Host cannot be empty");
@@ -200,15 +210,16 @@ public static class BackendApiEndpoints
 
         return errors.Count > 0
             ? ValidatedBackendInput.Failed(errors)
-            : new ValidatedBackendInput(serviceName, name, host!, port, request.Weight, null);
+            : new ValidatedBackendInput(serviceName, name, scheme, host!, port, request.Weight, null);
     }
 
     private static ValidatedBackendInput ValidateUpdate(UpdateServerDto request)
     {
         var errors = new List<string>();
         var parsedAddress = ParseAddress(request.Address);
-        var serviceName = request.ServiceName.Trim();
-        var name = request.Name.Trim();
+        var serviceName = request.ServiceName?.Trim() ?? string.Empty;
+        var name = request.Name?.Trim() ?? string.Empty;
+        var scheme = parsedAddress.Scheme;
         var host = request.Host is null ? parsedAddress.Host : request.Host.Trim();
         var port = request.Port ?? parsedAddress.Port;
 
@@ -221,6 +232,9 @@ public static class BackendApiEndpoints
         if (request.Address is not null && string.IsNullOrWhiteSpace(request.Address))
             errors.Add("Address cannot be empty");
 
+        if (scheme is not null && !IsValidScheme(scheme))
+            errors.Add("Invalid scheme");
+
         if (request.Host is not null && string.IsNullOrWhiteSpace(request.Host))
             errors.Add("Host cannot be empty");
 
@@ -232,7 +246,7 @@ public static class BackendApiEndpoints
 
         return errors.Count > 0
             ? ValidatedBackendInput.Failed(errors)
-            : new ValidatedBackendInput(serviceName, name, host, port, request.Weight, null);
+            : new ValidatedBackendInput(serviceName, name, scheme, host, port, request.Weight, null);
     }
 
     private static string? ResolveHost(string? host, string? parsedAddressHost)
@@ -246,18 +260,19 @@ public static class BackendApiEndpoints
     private static ParsedAddress ParseAddress(string? address)
     {
         if (string.IsNullOrWhiteSpace(address))
-            return new ParsedAddress(null, null);
+            return new ParsedAddress(null, null, null);
 
         var trimmed = address.Trim();
-        var candidate = trimmed.Contains("://", StringComparison.Ordinal)
+        var hasScheme = trimmed.Contains("://", StringComparison.Ordinal);
+        var candidate = hasScheme
             ? trimmed
             : $"http://{trimmed}";
 
         if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
-            return new ParsedAddress(trimmed.TrimEnd('/'), null);
+            return new ParsedAddress(null, trimmed.TrimEnd('/'), null);
 
         int? port = uri.IsDefaultPort ? null : uri.Port;
-        return new ParsedAddress(uri.Host, port);
+        return new ParsedAddress(hasScheme ? uri.Scheme : null, uri.Host, port);
     }
 
     private static bool IsValidPort(int? port)
@@ -265,11 +280,18 @@ public static class BackendApiEndpoints
         return port is >= 1 and <= 65535;
     }
 
-    private sealed record ParsedAddress(string? Host, int? Port);
+    private static bool IsValidScheme(string scheme)
+    {
+        return string.Equals(scheme, "http", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(scheme, "https", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed record ParsedAddress(string? Scheme, string? Host, int? Port);
 
     private sealed record ValidatedBackendInput(
         string ServiceName,
         string Name,
+        string? Scheme,
         string? Host,
         int? Port,
         int? Weight,
@@ -280,6 +302,7 @@ public static class BackendApiEndpoints
             return new ValidatedBackendInput(
                 string.Empty,
                 string.Empty,
+                null,
                 null,
                 null,
                 null,
