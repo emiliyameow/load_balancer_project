@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru" data-theme="console" data-color-theme="pink">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (() => {
+        const savedTheme =
+          window.localStorage.getItem("balancer-color-theme") ??
+          window.localStorage.getItem("balancer-theme");
+        document.documentElement.dataset.theme = "console";
+        document.documentElement.dataset.colorTheme = savedTheme === "dark" ? "dark" : "pink";
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Balancer Front</title>
+    <script type="module" crossorigin src="/assets/index-Crr-B0DF.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B8QpA1CD.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

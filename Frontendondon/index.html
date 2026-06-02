@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ru" data-theme="console" data-color-theme="pink">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (() => {
+        const savedTheme =
+          window.localStorage.getItem("balancer-color-theme") ??
+          window.localStorage.getItem("balancer-theme");
+        document.documentElement.dataset.theme = "console";
+        document.documentElement.dataset.colorTheme = savedTheme === "dark" ? "dark" : "pink";
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Balancer Front</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

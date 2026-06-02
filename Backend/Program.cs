@@ -1,4 +1,4 @@
-﻿namespace Backend;
+namespace Backend;
 
 public class Program
 {
@@ -32,10 +32,29 @@ public class Program
             }
         });
 
-        app.MapGet("/health", () => Results.Ok(_activeRequestsCounter.ToString()));
+        app.MapGet("/health", () => Results.Ok(_activeRequestsCounter));
 
-        app.MapGet("/test", () => Task.FromResult("Server_1!"));
-        app.MapGet("/", () => Task.FromResult("<div>Стартовая страница!<div/>"));
+        app.MapGet("/test", async (HttpContext context, IConfiguration configuration) =>
+        {
+            var delayMs = 0;
+            if (context.Request.Query.TryGetValue("delayMs", out var rawDelay) &&
+                int.TryParse(rawDelay, out var parsedDelay))
+            {
+                delayMs = Math.Clamp(parsedDelay, 0, 30_000);
+            }
+
+            if (delayMs > 0)
+                await Task.Delay(delayMs, context.RequestAborted);
+
+            var serverName = configuration["SERVER_NAME"];
+            if (string.IsNullOrWhiteSpace(serverName))
+                serverName = context.Connection.LocalPort > 0
+                    ? $"Server_{context.Connection.LocalPort}"
+                    : "Server";
+
+            return $"{serverName}!";
+        });
+        app.MapGet("/", () => Task.FromResult("<div>Стартовая страница!</div>"));
 
         app.Run();
     }

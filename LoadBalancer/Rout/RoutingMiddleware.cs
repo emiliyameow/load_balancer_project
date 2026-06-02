@@ -1,43 +1,80 @@
-using IRouter = LoadBalancer.API.Rout.IRouter;
 using LoadBalancer.API.ServiceCache;
 using LoadBalancer.API.Balance;
 using LoadBalancer.API.HealthCheck;
+using LoadBalancer.API.ServiceDiscovery;
+using System.Collections.Immutable;
 
 namespace LoadBalancer.API.Rout;
 
-public class RoutingMiddleware
+public class RoutingMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-
-    public RoutingMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
+    private readonly RequestDelegate _next = next;
+    private const string DefaultServiceName = "users-service";
 
     public async Task InvokeAsync(
         HttpContext context, 
         IRouter router, 
         ServiceCacheHandler serversCache,
         HealthCache healthCache,
-        BalanceAlgoritm balanceAlgoritm)
+        BalanceAlgorithm balanceAlgorithm,
+        BackendLoadTracker loadTracker,
+        IServiceRegistry serviceRegistry)
     {
-        var allServerConditions = serversCache.GetInstances("users-service").ToList();
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            await _next(context);
+            return;
+        }
 
-        // фильтруем по только health серверам - проверяем в health cache
-        var serverConditions = allServerConditions
-            .Where(s => healthCache.IsHealthy(s.ServerInfo.Address))
-            .ToList();
-        
-        // берем первый сервер (для тестирования)
-        ServerCondition selectedServer;
+        var allServerConditions = serversCache.GetInstances(DefaultServiceName).ToList();
+        if (allServerConditions.Count == 0)
+        {
+            try
+            {
+                allServerConditions = await LoadServiceInstancesAsync(
+                    serviceRegistry,
+                    serversCache,
+                    DefaultServiceName,
+                    context.RequestAborted);
+            }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                await context.Response.WriteAsync("Service registry is unavailable");
+                return;
+            }
+        }
+
+        // фильтруем по только health серверам и берем свежую нагрузку из health cache
+        var serverConditions = new List<ServerCondition>();
+        foreach (var server in allServerConditions)
+        {
+            if (!healthCache.TryGet(server.ServerInfo.Address, out var health) || !health.IsAlive)
+                continue;
+
+            serverConditions.Add(new ServerCondition
+            {
+                ServerInfo = server.ServerInfo,
+                IsAlive = true,
+                Weight = health.Weight,
+                LatencyMs = health.LatencyMs,
+                CheckedAt = health.CheckedAt,
+                Error = health.Error
+            });
+        }
+
+        BackendLoadTracker.BackendReservation reservation;
         try
         {
-            selectedServer = balanceAlgoritm.GetFreeServer(serverConditions);
+            reservation = loadTracker.Reserve(serverConditions, balanceAlgorithm);
         }
         catch (BalanceException ex)
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            await context.Response.WriteAsync("Backend is not found");
             await context.Response.WriteAsync($"Backend selection failed: {ex.Message}");
             return;
         }
@@ -48,17 +85,39 @@ public class RoutingMiddleware
             return;
         }
 
-        // формируем адрес сервера
-        var targetUrl = $"{selectedServer.ServerInfo.Address}";
-
-        if (string.IsNullOrWhiteSpace(targetUrl))
+        using (reservation)
         {
-            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            await context.Response.WriteAsync("Backend URL is not configured");
-            return;
-        }
+            var selectedServer = reservation.Server;
+            var targetUrl = selectedServer.ServerInfo.Address;
 
-        // передаем контекст в сервер
-        await router.RouteAsync(context, targetUrl);
+            context.Response.Headers["X-Balancer-Backend-Name"] = selectedServer.ServerInfo.Name;
+            context.Response.Headers["X-Balancer-Backend-Address"] = selectedServer.ServerInfo.Address;
+            context.Response.Headers["X-Balancer-Backend-Weight"] = selectedServer.Weight.ToString();
+            context.Response.Headers["X-Balancer-Backend-Active"] = reservation.ActiveRequests.ToString();
+            context.Response.Headers["X-Balancer-Backend-Effective-Weight"] = reservation.EffectiveWeight.ToString();
+
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                await context.Response.WriteAsync("Backend URL is not configured");
+                return;
+            }
+
+            await router.RouteAsync(context, targetUrl);
+        }
+    }
+
+    private static async Task<List<ServerCondition>> LoadServiceInstancesAsync(
+        IServiceRegistry serviceRegistry,
+        ServiceCacheHandler serversCache,
+        string serviceName,
+        CancellationToken ct)
+    {
+        var services = await serviceRegistry.GetServicesAsync(ct);
+        if (!services.TryGetValue(serviceName, out var instances))
+            return [];
+
+        serversCache.AddOrUpdateService(serviceName, instances.ToImmutableList());
+        return instances;
     }
 }

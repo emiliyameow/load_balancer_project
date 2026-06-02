@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace LoadBalancer.API.Rout;
-public class Router : IRouter
+public class Router(HttpClient httpClient) : IRouter
 {
-    private readonly HttpClient _httpClient;
-
     private static readonly HashSet<string> HopByHopHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
         "Connection",
@@ -18,12 +16,7 @@ public class Router : IRouter
         "Proxy-Connection"
     };
 
-    public Router(HttpClient httpClient)
-    {
-        _httpClient = httpClient;
-    }
-
-    public async Task RouteAsync(HttpContext context, string targetUrl)
+    public async Task RouteAsync(HttpContext context, string? targetUrl)
     {
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
@@ -70,20 +63,20 @@ public class Router : IRouter
         var remoteIp = context.Connection.RemoteIpAddress?.ToString();
         if (!string.IsNullOrEmpty(remoteIp))
         {
-            if (request.Headers.TryGetValue("X-Forwarded-For", out var existingFor))
-                proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", $"{existingFor}, {remoteIp}");
-            else
-                proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", remoteIp);
+            proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-For",
+                request.Headers.TryGetValue("X-Forwarded-For", out var existingFor)
+                    ? $"{existingFor}, {remoteIp}"
+                    : remoteIp);
         }
 
         proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Proto", request.Scheme);
         proxyRequest.Headers.TryAddWithoutValidation("X-Forwarded-Host", request.Host.Value);
 
-        proxyRequest.Headers.Host = proxyRequest.RequestUri?.Host;
+        proxyRequest.Headers.Host = destinationUri.Authority;
 
         try
         {
-            using var response = await _httpClient.SendAsync(
+            using var response = await httpClient.SendAsync(
                 proxyRequest,
                 HttpCompletionOption.ResponseHeadersRead,
                 context.RequestAborted);
