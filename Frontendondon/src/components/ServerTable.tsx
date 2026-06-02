@@ -1,17 +1,18 @@
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type { BackendProbe } from "../types/backend";
 import { StatusBadge } from "./StatusBadge";
 
 interface ServerTableProps {
   servers: BackendProbe[];
   onEdit?: (server: BackendProbe) => void;
+  onDelete?: (server: BackendProbe) => void;
 }
 
 function formatCheckedAt(date: Date | null) {
   return date ? date.toLocaleTimeString() : "Never";
 }
 
-export function ServerTable({ servers, onEdit }: ServerTableProps) {
+export function ServerTable({ servers, onEdit, onDelete }: ServerTableProps) {
   if (servers.length === 0) {
     return (
       <section className="empty-state">
@@ -36,7 +37,7 @@ export function ServerTable({ servers, onEdit }: ServerTableProps) {
             <th>Health ms</th>
             <th>Checked</th>
             <th>Signal</th>
-            {onEdit ? <th>Actions</th> : null}
+            {onEdit || onDelete ? <th>Actions</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -66,17 +67,32 @@ export function ServerTable({ servers, onEdit }: ServerTableProps) {
               <td className={server.error ? "signal-cell signal-cell--warn" : "signal-cell"}>
                 {server.error ?? "OK"}
               </td>
-              {onEdit ? (
+              {onEdit || onDelete ? (
                 <td>
-                  <button
-                    className="icon-button"
-                    type="button"
-                    aria-label={`Edit ${server.name}`}
-                    title="Edit server"
-                    onClick={() => onEdit(server)}
-                  >
-                    <Pencil size={15} aria-hidden="true" />
-                  </button>
+                  <div className="action-cell">
+                    {onEdit ? (
+                      <button
+                        className="icon-button"
+                        type="button"
+                        aria-label={`Edit ${server.name}`}
+                        title="Edit server"
+                        onClick={() => onEdit(server)}
+                      >
+                        <Pencil size={15} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                    {onDelete ? (
+                      <button
+                        className="icon-button icon-button--danger"
+                        type="button"
+                        aria-label={`Delete ${server.name}`}
+                        title="Delete server"
+                        onClick={() => onDelete(server)}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
               ) : null}
             </tr>

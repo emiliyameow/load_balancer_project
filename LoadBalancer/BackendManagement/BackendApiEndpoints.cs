@@ -80,6 +80,28 @@ public static class BackendApiEndpoints
             return Results.NoContent();
         });
 
+        group.MapDelete("/{serviceName}/{name}", async (
+            string serviceName,
+            string name,
+            RuntimeBackendRegistry registry,
+            ServiceCacheHandler cache,
+            HealthCache healthCache) =>
+        {
+            if (string.IsNullOrWhiteSpace(serviceName))
+                return Results.BadRequest("ServiceName is required");
+
+            if (string.IsNullOrWhiteSpace(name))
+                return Results.BadRequest("Name is required");
+
+            if (!registry.TryRemove(serviceName, name, out var registration) || registration is null)
+                return Results.NotFound("Server not found");
+
+            healthCache.Remove(registration.ServerInfo.Address);
+            await SyncServiceCacheAsync(registry, cache, serviceName);
+
+            return Results.NoContent();
+        });
+
         return app;
     }
 
@@ -133,6 +155,8 @@ public static class BackendApiEndpoints
         var services = await registry.GetServicesAsync();
         if (services.TryGetValue(serviceName, out var serviceBackends))
             cache.AddOrUpdateService(serviceName, serviceBackends.ToImmutableList());
+        else
+            cache.AddOrUpdateService(serviceName, ImmutableList<ServerCondition>.Empty);
     }
 
     private static void WarmHealthCache(HealthCache healthCache, BackendRegistration registration)

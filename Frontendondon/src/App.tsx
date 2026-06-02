@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, Gauge, Network, Play, Plus, RotateCcw, TimerReset } from "lucide-react";
-import { BACKEND_API_BASE_URL, probeBackends, sendBalancerRequest } from "./api/backend";
+import { BACKEND_API_BASE_URL, deleteBackend, probeBackends, sendBalancerRequest } from "./api/backend";
 import { FilterBar } from "./components/FilterBar";
 import { MetricStrip } from "./components/MetricStrip";
 import { ServerDrawer } from "./components/ServerDrawer";
@@ -189,6 +189,18 @@ export default function App() {
 
   const handleDrawerSuccess = () => {
     void loadServers();
+  };
+
+  const handleDelete = async (server: BackendProbe) => {
+    if (!window.confirm(`Delete server "${server.name}" (${server.serviceName})?`)) return;
+
+    try {
+      await deleteBackend(server.serviceName, server.name);
+      setError(null);
+      void loadServers();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Failed to delete server");
+    }
   };
 
   const services = useMemo(
@@ -440,7 +452,7 @@ export default function App() {
         <span>Updated {formatTime(lastUpdated)}</span>
       </div>
 
-      <ServerTable servers={filteredServers} onEdit={handleEdit} />
+      <ServerTable servers={filteredServers} onEdit={handleEdit} onDelete={handleDelete} />
 
       <ServerDrawer
         open={drawerOpen}

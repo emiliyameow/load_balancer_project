@@ -118,6 +118,31 @@ public class RuntimeBackendRegistry : IServiceRegistry
         }
     }
 
+    public bool TryRemove(
+        string serviceName,
+        string name,
+        out BackendRegistration? registration)
+    {
+        lock (_gate)
+        {
+            registration = null;
+
+            if (!_services.TryGetValue(serviceName, out var serviceBackends) ||
+                !serviceBackends.TryGetValue(name, out var existing))
+            {
+                return false;
+            }
+
+            registration = CopyRegistration(existing);
+            serviceBackends.Remove(name);
+
+            if (serviceBackends.Count == 0)
+                _services.Remove(serviceName);
+
+            return true;
+        }
+    }
+
     private void AddOrReplace(string serviceName, BackendConfig serverInfo, int initialWeight)
     {
         var serviceBackends = GetOrCreateService(serviceName);

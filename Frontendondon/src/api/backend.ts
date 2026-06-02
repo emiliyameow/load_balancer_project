@@ -119,3 +119,21 @@ export async function updateBackend(data: UpdateServerDTO): Promise<void> {
     throw new Error(`${response.status} ${await response.text()}`);
   }
 }
+
+export async function deleteBackend(serviceName: string, name: string): Promise<void> {
+  const response = await fetch(
+    `${BACKEND_API_BASE_URL}/${encodeURIComponent(serviceName)}/${encodeURIComponent(name)}`,
+    {
+      method: "DELETE",
+      cache: "no-store"
+    }
+  );
+
+  if (response.status === 404) {
+    throw new Error("404 Server not found");
+  }
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${await response.text()}`);
+  }
+}
