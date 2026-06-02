@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, Gauge, Network, Play, Plus, RotateCcw, TimerReset } from "lucide-react";
-import { BACKEND_API_BASE_URL, deleteBackend, probeBackends, sendBalancerRequest } from "./api/backend";
+import { BACKEND_API_BASE_URL, changeBalancingAlgorithm, deleteBackend, getBalancingAlgorithm, probeBackends, sendBalancerRequest } from "./api/backend";
 import { FilterBar } from "./components/FilterBar";
 import { MetricStrip } from "./components/MetricStrip";
 import { ServerDrawer } from "./components/ServerDrawer";
@@ -9,9 +9,11 @@ import type { BackendProbe, BalancerResponse, StatusFilter } from "./types/backe
 
 const refreshIntervalMs = 10000;
 
-const algorithm = {
-  name: "MinWeightStrategy"
+const ALGORITHM_LABELS: Record<string, string> = {
+  "min-weight": "Min Weight",
+  "weighted-round-robin": "Weighted Round Robin",
 };
+
 
 type ColorTheme = "pink" | "dark";
 
@@ -98,6 +100,8 @@ export default function App() {
   const [colorTheme, setColorTheme] = useState<ColorTheme>(getInitialColorTheme);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingServer, setEditingServer] = useState<BackendProbe | null>(null);
+  const [algorithmName, setAlgorithmName] = useState("min-weight");
+  const [availableAlgorithms, setAvailableAlgorithms] = useState<string[]>([]);
 
   const loadServers = async () => {
     setIsLoading(true);
@@ -164,6 +168,13 @@ export default function App() {
     }, refreshIntervalMs);
 
     return () => window.clearInterval(refreshId);
+  }, []);
+
+  useEffect(() => {
+    void getBalancingAlgorithm().then((info) => {
+      setAlgorithmName(info.currentAlgorithm);
+      setAvailableAlgorithms(info.availableAlgorithms);
+    });
   }, []);
 
   useEffect(() => {
@@ -334,7 +345,27 @@ export default function App() {
           <div className="runtime-list">
             <div className="runtime-row">
               <span>Strategy</span>
-              <strong>{algorithm.name}</strong>
+              <select
+                className="select-control"
+                value={algorithmName}
+                aria-label="Balancing algorithm"
+                onChange={async (event) => {
+                  const next = event.target.value;
+                  setAlgorithmName(next);
+                  try {
+                    await changeBalancingAlgorithm(next);
+                  } catch {
+                    const info = await getBalancingAlgorithm();
+                    setAlgorithmName(info.currentAlgorithm);
+                  }
+                }}
+              >
+                {availableAlgorithms.map((alg) => (
+                  <option key={alg} value={alg}>
+                    {ALGORITHM_LABELS[alg] ?? alg}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="runtime-row">
               <span>API</span>

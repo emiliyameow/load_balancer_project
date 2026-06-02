@@ -137,3 +137,29 @@ export async function deleteBackend(serviceName: string, name: string): Promise<
     throw new Error(`${response.status} ${await response.text()}`);
   }
 }
+
+export const ALGORITHM_API_BASE_URL = "/api";
+
+export interface AlgorithmInfo {
+  currentAlgorithm: string;
+  availableAlgorithms: string[];
+}
+
+export async function getBalancingAlgorithm(): Promise<AlgorithmInfo> {
+  return fetchJson<AlgorithmInfo>(`${ALGORITHM_API_BASE_URL}/balancing-algorithm`);
+}
+
+export async function changeBalancingAlgorithm(name: string): Promise<void> {
+  const response = await fetch(
+    `${ALGORITHM_API_BASE_URL}/change-balancing-algorithm/${encodeURIComponent(name)}`,
+    { method: "PATCH", cache: "no-store" }
+  );
+
+  if (response.status === 400) {
+    throw new Error(`400 Unknown algorithm: "${name}"`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${await response.text()}`);
+  }
+}

@@ -63,3 +63,8 @@ export interface BalancerResponse {
 }
 
 export type StatusFilter = "all" | "alive" | "down";
+
+export interface AlgorithmInfo {
+  currentAlgorithm: string;
+  availableAlgorithms: string[];
+}
